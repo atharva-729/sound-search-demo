@@ -60,7 +60,7 @@ def main():
             shutil.copytree(MODELS / name, srch / "models" / name)
     shutil.copy2(HERE / "scripts" / "bundle_server.py", srch / "server.py")
     shutil.copy2(HERE / "scripts" / "bundle_files" / "requirements.txt", srch / "requirements.txt")
-    for f in ("start.bat", "start.command", "START HERE.txt"):
+    for f in ("start.bat", "start.command", "START HERE.txt", "CLAUDE.md"):
         shutil.copy2(HERE / "scripts" / "bundle_files" / f, OUT / f)
     uv = HERE / "scripts" / "bundle_files" / "uv.exe"
     if uv.exists():
