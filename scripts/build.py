@@ -81,7 +81,7 @@ def podcasts():
     items = pd.DataFrame({"id": seg.segment_id.values, "collection": "podcasts", "dataset": "podcast",
                           "label": ep.vibe.values,
                           "name": [f"{s} @ {mmss(t)}" for s, t in zip(ep.show.values, seg.start_s.values)],
-                          "file": [str(POD / "data" / "audio_cache" / a) for a in ep.audio_file.values],
+                          "file": [str(POD / "data" / "audio_cache" / "raw" / a) for a in ep.audio_file.values],
                           "start": seg.start_s.values, "dur": (seg.end_s - seg.start_s).values})
     return items, {"clap": np.load(f), "gemma": np.load(POD / "index" / "audio_emb.npy")}
 
@@ -110,9 +110,15 @@ def main():
         for m, mod in models.items():
             q = l2(mod.text(ch["texts"]).mean(0, keepdims=True))[0]
             s = emb[m] @ q
+            if ch.get("scope"):
+                if not items.collection.isin(ch["scope"]).any():
+                    continue
+                s = np.where(items.collection.isin(ch["scope"]), s, -9)
             top = np.argsort(-s)[:TOP_CHIP]
+            top = top[s[top] > -9]
             out[m] = [[int(i), round(float(s[i]), 4)] for i in top]
-        chips.append(out)
+        if all(m in out for m in models):
+            chips.append(out)
 
     nn = {}
     for m in ("clap", "gemma"):

@@ -1,7 +1,8 @@
 """Ready-made searches: things a transcript can't find. Texts = a name plus 2 short descriptions (averaged), the
 prompt rule from audio-vocab, except where one plain word scored better on these clips
 (clearing throat 0 -> 4 of 10, shouting 1 -> 4 of 10). `labels` are the dataset labels that count as a correct hit (VocalSound, ESC-50,
-FSD50K, CREMA-D); `model` is the default (CLAP names sound events far better; Gemma is stronger on how people talk)."""
+FSD50K, CREMA-D); `scope` limits a search to some collections;
+`model` is the default (CLAP names sound events far better; Gemma is stronger on how people talk)."""
 
 CHIPS = [
     {"key": "cough", "title": "Coughing", "group": "Body sounds", "model": "clap",
@@ -28,9 +29,10 @@ CHIPS = [
     {"key": "shout", "title": "Shouting", "group": "How people talk", "model": "clap", "labels": ["Shout"],
      "texts": ["shouting"]},
     {"key": "anchor", "title": "News anchor reading headlines", "group": "How people talk", "model": "gemma",
-     "labels": [], "texts": ["a news anchor reading headlines", "a newsreader presenting the news",
+     "labels": [], "scope": ["podcasts"], "texts": ["a news anchor reading headlines", "a newsreader presenting the news",
                              "a formal radio news bulletin"]},
     {"key": "banter", "title": "Friends joking around", "group": "How people talk", "model": "gemma", "labels": [],
+     "scope": ["podcasts"],
      "texts": ["friends joking around", "casual banter and laughing", "relaxed, playful conversation"]},
     {"key": "angry", "title": "An angry voice", "group": "How people talk", "model": "clap", "labels": ["ANG"],
      "texts": ["an angry voice", "a person speaking angrily", "someone shouting in anger"]},

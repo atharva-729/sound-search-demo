@@ -330,7 +330,7 @@ function renderPanel() {
   const ok = v.filter(x => x === "ok").length;
   let score = "";
   if (lab.length) score = `<div class="score"><span class="big">${ok} of ${lab.length}</span><span class="of">labelled clips are ${q.kind === "similar" ? "the same kind (" + esc(pretty(IT[q.src].label)) + ")" : "right"}${v.includes("unk") ? ` · ${v.filter(x => x === "unk").length} podcast clips: listen` : ""}</span></div>`;
-  else if (top.length) score = `<div class="score"><span class="of">Your own words have no answer key: check each clip's label, or <b>click to listen</b>.</span></div>`;
+  else if (top.length) score = `<div class="score"><span class="of">${q.kind === "text" ? "Your own words have no answer key: check each clip's label, or" : "Podcasts have no clip labels (the show type is shown under each):"} <b>click to listen</b>.</span></div>`;
   if (q.kind === "similar" && IT[q.src].col === "emotions")
     score += `<div class="note" style="margin:-4px 0 8px">${q.ex !== undefined ? "This clip was picked as the most typical one. " : ""}Across <b>all</b> ${esc(pretty(IT[q.src].label))} clips, on average <b>${typical(IT[q.src].label, S.model)} of 10</b> neighbours share the mood (chance: 1.7).</div>`;
   const rows = top.map((i, r) => {
