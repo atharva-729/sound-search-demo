@@ -8,6 +8,8 @@ const ease = t => t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 const backOut = t => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
 
 const MAP = DATA.map || "real";
+// true when served by scripts/serve.py on this machine; false on GitHub Pages
+const LOCAL = ["127.0.0.1", "localhost"].includes(location.hostname);
 const IT = DATA.items.map(([col, label, name, x, y, dur, tags], i) => ({i, col, label, name, x, y, dur, tags: tags ? tags.split("|") : []}));
 // colour slot per collection; the two maps never show "sounds" and "music" together
 const COLS = {
@@ -269,7 +271,7 @@ function renderPanel() {
       <div style="min-width:0"><div class="sk">You started from this clip</div><div class="rn">${esc(cap(sc.name))}</div></div></div>`;
   }
   if (q.loading) { P.innerHTML = h + `</div><div class="loading">Listening to ${IT.length.toLocaleString()} clips…${"<div class='shim'></div>".repeat(5)}</div>`; return; }
-  if (q.error) { P.innerHTML = h + `</div><div class="err">Typed search needs the local server (scripts/serve.py). The ready-made searches work without it.</div>`; return; }
+  if (q.error) { P.innerHTML = h + `</div><div class="err">Typed search runs the models live, so it needs the local version (scripts/serve.py). The ready-made searches and “→ similar” work here.</div>`; return; }
   const v = current.map(i => verdict(IT[i], q)), lab = v.filter(x => x === "ok" || x === "bad"), ok = v.filter(x => x === "ok").length;
   if (lab.length) {
     const what = q.kind === "similar" ? `the same kind as the clip you picked (<b>${esc(pretty(IT[q.src].label))}</b>)` : "<b>right</b>, by their human labels";
@@ -364,7 +366,8 @@ audio.ontimeupdate = () => {
 };
 audio.onerror = () => {
   if (S.playing === null || !audio.src) return;
-  toast(location.protocol === "file:" ? "Open the page through scripts/serve.py to hear clips." : "This clip's audio isn't on this laptop yet.");
+  toast(!LOCAL ? "Audio isn't hosted on this public page (licences). The local version plays every clip." :
+        location.protocol === "file:" ? "Open the page through scripts/serve.py to hear clips." : "This clip's audio isn't on this laptop yet.");
 };
 $("dplay").onclick = () => S.playing !== null && play(S.playing);
 $("dsim").onclick = () => S.playing !== null && runSimilar(S.playing);
