@@ -668,13 +668,7 @@ cv.onclick = e => {
 cv.ondblclick = e => { const r = cv.getBoundingClientRect(); zoomBy(.5, e.clientX - r.left, e.clientY - r.top); };
 $("zin").onclick = () => zoomBy(.67); $("zout").onclick = () => zoomBy(1.5);
 $("zreset").onclick = () => goTo({x0: 0, y0: 0, w: 1, h: 1});
-$("cx").onclick = () => $("mcallout").classList.add("off");
-$("clink").onclick = e => {   // the explanation lives in the start-up panel
-  e.preventDefault();
-  if (S.query) deselect();
-  const b = $("clusters"); if (!b) return;
-  b.scrollIntoView({block: "nearest", behavior: "smooth"}); b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash");
-};
+
 $("zfit").onclick = () => { const q = S.query; if (current.length) flyTo(current.concat(q.kind === "similar" ? [q.src] : [])); };
 
 // minimap
