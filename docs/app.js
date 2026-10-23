@@ -14,7 +14,25 @@ const COLS = {
   podcasts: {name: "Podcasts", short: "Podcasts", color: "#c2830f", src: "39 real shows, minutes 2–10, 20 s clips"},
 };
 const MODELS = {clap: {name: "CLAP", color: "#8f73ec"}, gemma: {name: "Gemma", color: "#5fa80f"}};
-const OK = "#12a28d", BAD = "#ea6236";
+let OK = "#12a28d", BAD = "#ea6236";
+// Two themes. Data colours are validated per surface (dark / light lightness band, all-pairs CVD, 3:1 contrast).
+const PAL = {
+  dark: {sounds: "#2a92e0", emotions: "#e14d8f", podcasts: "#c2830f", clap: "#8f73ec", gemma: "#5fa80f", ok: "#12a28d", bad: "#ea6236",
+         ink: "#ffffff", inkA: "255,255,255", halo: "rgba(0,0,0,.95)", label: "rgba(236,240,255,.9)", stroke: "#0b0e1b", text: "#e6e9f8",
+         mut: "#8a91b0", soft: "#bcc3de", glow: "lighter", glowK: 1, specTop: "#ffffff"},
+  light: {sounds: "#1b7fd1", emotions: "#d43c80", podcasts: "#a96d00", clap: "#7a5ce0", gemma: "#4e8c0a", ok: "#0e8f7c", bad: "#d4521f",
+          ink: "#14162a", inkA: "20,22,42", halo: "rgba(255,255,255,.95)", label: "rgba(20,22,42,.85)", stroke: "#ffffff", text: "#1d2140",
+          mut: "#5f6684", soft: "#3c4363", glow: "source-over", glowK: .5, specTop: "#14162a"},
+};
+let THEME = "dark", C = PAL.dark;
+try { if (localStorage.getItem("ss-theme") === "light") THEME = "light"; } catch (e) {}
+function setPalette() {
+  C = PAL[THEME];
+  for (const c in COLS) COLS[c].color = C[c];
+  MODELS.clap.color = C.clap; MODELS.gemma.color = C.gemma; OK = C.ok; BAD = C.bad;
+  document.documentElement.dataset.theme = THEME;
+}
+setPalette();
 const present = DATA.collections.filter(c => IT.some(t => t.col === c));
 const EMO = {ANG: "angry", DIS: "disgusted", FEA: "afraid", HAP: "happy", SAD: "sad", NEU: "neutral"};
 const EMO_ICON = {ANG: "😠", DIS: "🤢", FEA: "😨", HAP: "😄", SAD: "😔", NEU: "😐"};
@@ -43,7 +61,8 @@ const EXAMPLES = ["ANG", "SAD", "HAP", "FEA"].map(lab => {
     const s = DATA.nn.clap[t.i].slice(0, 10).filter(j => IT[j].label === lab).length;
     if (s > bs) { bs = s; best = t.i; }
   }
-  return best === null ? null : {title: `Like this ${pretty(lab)} clip`, idx: best, label: lab};
+  const w = pretty(lab);
+  return best === null ? null : {title: `${w[0].toUpperCase() + w.slice(1)} clip → similar`, idx: best, label: lab};
 }).filter(Boolean);
 // The honest number beside a hand-picked example: across ALL clips of a mood, how many of the 10 nearest share it.
 function typical(lab, model) {
@@ -81,9 +100,10 @@ function renderChips() {
   const chip = n => { const c = DATA.chips[n];
     return `<button class="chip ${q?.chip === n ? "on" : ""}" data-chip="${n}"><span class="e">${ICON[c.key] || "🔊"}</span>${esc(c.title)}</button>`; };
   const h = Object.entries(groups).filter(([, ns]) => ns.length).map(([g, ns]) => `<span class="cg"><span class="gl">${esc(g)}</span>${ns.map(chip).join("")}${
-    g === "Moods" && EXAMPLES.length && present.includes("emotions") ? `<span class="or">or, no words:</span>` + EXAMPLES.map((x, n) =>
-      `<button class="chip ex ${q?.ex === n ? "on" : ""}" data-ex="${n}" title="Finds clips that sound like this one"><span class="e">${EMO_ICON[x.label]}</span>${esc(x.title)}</button>`).join("") : ""}</span>`).join("");
-  $("chips").innerHTML = h;
+    g === "Moods" && EXAMPLES.length && present.includes("emotions") ? `<span class="or">or start from a clip, no words:</span>` + EXAMPLES.map((x, n) =>
+      `<button class="chip ex ${q?.ex === n ? "on" : ""}" data-ex="${n}" title="Plays one ${pretty(x.label)} actor clip, then lights up the clips that sound most like it"><span class="e">${EMO_ICON[x.label]}</span>${esc(x.title)}</button>`).join("") : ""}</span>`).join("");
+  const live = q || S.playing !== null || S.on.size < present.length || V.w < .97;
+  $("chips").innerHTML = h + `<button class="reset ${live ? "live" : ""}" id="reset" title="Clear everything and show the whole map (Esc)">↺ Reset</button>`;
 }
 $("chips").onmouseover = e => {
   const b = e.target.closest("button"); let pv = null;
@@ -96,8 +116,16 @@ $("chips").onmouseleave = () => { S.preview = null; kick(); };
 $("chips").onclick = e => {
   S.preview = null;
   const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.chip !== undefined) runChip(+b.dataset.chip, true);
-  else runSimilar(EXAMPLES[+b.dataset.ex].idx, +b.dataset.ex);
+  if (b.id === "reset") return resetAll();
+  if (b.dataset.chip !== undefined) {
+    const n = +b.dataset.chip;
+    if (S.query?.chip === n) return deselect();   // second click turns it off
+    runChip(n, true); playBest();
+  } else {
+    const n = +b.dataset.ex;
+    if (S.query?.ex === n) return deselect();
+    runSimilar(EXAMPLES[n].idx, n); play(EXAMPLES[n].idx);
+  }
 };
 
 // ---------- search box ----------
@@ -157,7 +185,7 @@ async function runText(text) {
 function runSimilar(idx, ex) {
   const t = IT[idx];
   S.sel = idx;
-  setQuery({kind: "similar", src: idx, ex, title: t.name, icon: t.col === "emotions" ? EMO_ICON[t.label] : "≈", labels: null,
+  setQuery({kind: "similar", src: idx, ex, title: "Clips that sound like it", icon: t.col === "emotions" ? EMO_ICON[t.label] : "≈", labels: null,
             ranked: DATA.nn[S.model][idx]});
 }
 function rerun() {
@@ -167,12 +195,23 @@ function rerun() {
   else runSimilar(q.src, q.ex);
 }
 function clearQuery() { S.query = null; current = []; renderChips(); renderPanel(); baseDirty = true; kick(); }
+// play the best match that its human label confirms (a cough for "Coughing"), else the top match
+function playBest() {
+  const q = S.query; if (!q || !current.length) return;
+  play(current.find(i => verdict(IT[i], q) === "ok") ?? current[0]);
+}
+function deselect() { clearQuery(); stopAudio(); S.sel = null; goTo({x0: 0, y0: 0, w: 1, h: 1}); }
+function resetAll() {
+  S.on = new Set(present); S.k = 10; S.preview = null; $("q").value = "";
+  if (S.model !== "clap") { S.model = "clap"; renderModels(); }
+  renderLayers(); renderMini(); deselect();
+}
 
 // ---------- panel ----------
 function donut(n, d, color) {
   const r = 26, C = 2 * Math.PI * r, f = d ? n / d : 0;
   return `<svg class="donut" width="68" height="68" viewBox="0 0 68 68" aria-label="${n} of ${d}">
-    <circle cx="34" cy="34" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/>
+    <circle cx="34" cy="34" r="${r}" fill="none" stroke="rgba(${C.inkA},.1)" stroke-width="7"/>
     ${d ? "" : "<!--"}<circle cx="34" cy="34" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${C * f} ${C}"
       transform="rotate(-90 34 34)" style="filter:drop-shadow(0 0 6px ${color});transition:stroke-dasharray .6s"/>${d ? "" : "-->"}
     <text x="34" y="40" text-anchor="middle" font-size="18">${d ? n : "?"}</text></svg>`;
@@ -187,7 +226,7 @@ function emptyPanel() {
   const w = DATA.chips.findIndex(c => c.key === "waves"), a = DATA.chips.findIndex(c => c.key === "anchor");
   if (w >= 0) sg.push(`<button class="sg" data-chip="${w}" style="--c:${COLS.sounds.color}"><span class="e">🌊</span><span><div class="t">Sea waves</div><div class="s">A sound effect, named in words</div></span></button>`);
   if (a >= 0 && present.includes("podcasts")) sg.push(`<button class="sg" data-chip="${a}" style="--c:${COLS.podcasts.color}"><span class="e">📰</span><span><div class="t">News anchor reading headlines</div><div class="s">A way of talking, in real podcasts</div></span></button>`);
-  if (EXAMPLES.length) sg.push(`<button class="sg" data-ex="0" style="--c:${COLS.emotions.color}"><span class="e">😠</span><span><div class="t">Like this angry clip</div><div class="s">No words at all: search by example</div></span></button>`);
+  if (EXAMPLES.length) sg.push(`<button class="sg" data-ex="0" style="--c:${COLS.emotions.color}"><span class="e">😠</span><span><div class="t">Angry clip → similar</div><div class="s">No words: plays an angry clip, finds ones like it</div></span></button>`);
   return `<div class="empty"><h3>Where should we listen?</h3><p>Every dot is a clip. Clips that sound alike sit together.</p>
     <div class="sugg">${sg.join("")}</div>
     <div class="how3"><div><span>1</span>Pick a search above, or type your own words</div><div><span>2</span>Matches light up on the map, and are scored ✓ / ✗ here</div><div><span>3</span>Click any dot or row to hear it</div></div></div>`;
@@ -196,9 +235,14 @@ function renderPanel() {
   const q = S.query, P = $("panel");
   if (!q) { P.innerHTML = emptyPanel(); return; }
   const mp = q.kind === "chip" || q.kind === "text" || q.kind === "similar" ? `<span class="mp" style="--c:${MODELS[S.model].color}">${MODELS[S.model].name}</span>` : "";
-  const kind = {chip: "Ready-made search", text: "Your words", similar: "Sounds like this"}[q.kind];
-  let h = `<div class="phead"><div class="qrow"><div class="qicon">${q.icon}</div><div style="min-width:0"><div class="qkind">${kind} ${mp}</div>
+  const kind = {chip: "Ready-made search", text: "Your words", similar: "Search by example"}[q.kind];
+  let h = `<div class="phead"><button class="pclear" data-clear title="Clear (Esc)">✕</button><div class="qrow"><div class="qicon">${q.icon}</div><div style="min-width:0"><div class="qkind">${kind} ${mp}</div>
     <div class="qtitle">${esc(q.title)}</div></div></div>`;
+  if (q.kind === "similar") {
+    const sc = IT[q.src];
+    h += `<div class="srcc" data-i="${q.src}" style="--c:${COLS[sc.col].color}"><button class="pb" aria-label="Play">${S.playing === q.src && !audio.paused ? "❚❚" : "▶"}</button>
+      <div style="min-width:0"><div class="sk">You started from this clip</div><div class="rn">${esc(cap(sc.name))}</div></div></div>`;
+  }
   if (q.loading) { P.innerHTML = h + `</div><div class="loading">Listening to ${IT.length.toLocaleString()} clips…${"<div class='shim'></div>".repeat(5)}</div>`; return; }
   if (q.error) { P.innerHTML = h + `</div><div class="err">Typed search needs the local server (scripts/serve.py). The ready-made searches work without it.</div>`; return; }
   const v = current.map(i => verdict(IT[i], q)), lab = v.filter(x => x === "ok" || x === "bad"), ok = v.filter(x => x === "ok").length;
@@ -207,7 +251,7 @@ function renderPanel() {
     h += `<div class="score">${donut(ok, lab.length, ok / lab.length >= .5 ? OK : BAD)}<div><div class="sline"><b>${ok} of ${lab.length}</b> are ${what}</div>
       <div class="mix">${labelMix(current)}</div></div></div>`;
   } else if (current.length) {
-    h += `<div class="score">${donut(0, 0, "#8a91b0")}<div><div class="sline">${q.kind === "text" ? "No answer key for your own words." : "Podcasts have no clip labels."} <b>Listen</b> and judge.</div>
+    h += `<div class="score">${donut(0, 0, C.mut)}<div><div class="sline">${q.kind === "text" ? "No answer key for your own words." : "Podcasts have no clip labels."} <b>Listen</b> and judge.</div>
       <div class="mix">${labelMix(current)}</div></div></div>`;
   }
   if (q.kind === "similar" && IT[q.src].col === "emotions")
@@ -236,10 +280,11 @@ function renderPanel() {
   P.innerHTML = h;
 }
 $("panel").onclick = e => {
+  if (e.target.closest("[data-clear]")) return deselect();
   const k = e.target.closest("[data-k]"); if (k) { S.k = +k.dataset.k; return recompute(true); }
   const sim = e.target.closest("[data-sim]"); if (sim) return runSimilar(+sim.dataset.sim);
-  const ch = e.target.closest("[data-chip]"); if (ch) return runChip(+ch.dataset.chip, true);
-  const ex = e.target.closest("[data-ex]"); if (ex) return runSimilar(EXAMPLES[+ex.dataset.ex].idx, +ex.dataset.ex);
+  const ch = e.target.closest("[data-chip]"); if (ch) { runChip(+ch.dataset.chip, true); return playBest(); }
+  const ex = e.target.closest("[data-ex]"); if (ex) { const n = +ex.dataset.ex; runSimilar(EXAMPLES[n].idx, n); return play(EXAMPLES[n].idx); }
   const row = e.target.closest("[data-i]"); if (row) play(+row.dataset.i);
 };
 $("panel").onmouseover = e => { const r = e.target.closest(".row"); const i = r ? +r.dataset.i : null; if (i !== S.hoverRow) { S.hoverRow = i; kick(); } };
@@ -280,6 +325,9 @@ function syncRows() {
     r.classList.toggle("playing", on);
     r.querySelector(".pb").textContent = on && !audio.paused ? "❚❚" : "▶";
   });
+  const sc = document.querySelector(".srcc");
+  if (sc) sc.querySelector(".pb").textContent = +sc.dataset.i === S.playing && !audio.paused ? "❚❚" : "▶";
+  const rs = $("reset"); if (rs) rs.classList.toggle("live", !!(S.query || S.playing !== null || S.on.size < present.length || V.w < .97));
   $("dplay").textContent = audio.paused ? "▶" : "❚❚";
   document.body.classList.toggle("playing", !audio.paused);
 }
@@ -295,7 +343,8 @@ audio.onerror = () => {
 };
 $("dplay").onclick = () => S.playing !== null && play(S.playing);
 $("dsim").onclick = () => S.playing !== null && runSimilar(S.playing);
-$("dclose").onclick = () => { audio.pause(); $("dock").classList.remove("on"); S.playing = null; syncRows(); kick(); };
+function stopAudio() { audio.pause(); $("dock").classList.remove("on"); S.playing = null; syncRows(); kick(); }
+$("dclose").onclick = stopAudio;
 let toastT;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 3200); }
 const spec = $("spec"), sctx = spec.getContext("2d");
@@ -307,7 +356,7 @@ function drawSpec() {
     const v = freq && !audio.paused ? freq[Math.floor(k * 1.6) + 1] / 255 : 0.04 + 0.03 * Math.sin(k);
     const bh = Math.max(3, v * h);
     const g = sctx.createLinearGradient(0, h, 0, h - bh);
-    g.addColorStop(0, c); g.addColorStop(1, "#ffffff");
+    g.addColorStop(0, c); g.addColorStop(1, C.specTop);
     sctx.fillStyle = g; sctx.globalAlpha = .9;
     sctx.beginPath(); sctx.roundRect(k * bw + 1.5, h - bh, bw - 3, bh, 2); sctx.fill();
   }
@@ -397,8 +446,8 @@ function renderBase(now = performance.now()) {
     if (!S.on.has(c)) continue;
     const col = COLS[c].color, glow = sprite(col, 7);
     const pts = IT.filter(t => t.col === c);
-    bctx.globalCompositeOperation = "lighter";
-    bctx.globalAlpha = (active ? .035 : .08) * glowK;
+    bctx.globalCompositeOperation = C.glow;
+    bctx.globalAlpha = (active ? .035 : .08) * glowK * C.glowK;
     for (const t of pts) { const [x, y] = P(t); if (x < -10 || y < -10 || x > W + 10 || y > H + 10) continue; bctx.drawImage(glow, x - 7, y - 7, 14, 14); }
     bctx.globalCompositeOperation = "source-over";
     bctx.fillStyle = col; bctx.globalAlpha = active ? .28 : .72;
@@ -416,18 +465,17 @@ function renderBase(now = performance.now()) {
   for (const L of LABELS) {
     if (!S.on.has(L.col)) continue;
     if (n > 26 + zoomBoost * 8) break;
-    const x = px(L), y = py(L), text = L.name.toUpperCase(), w = bctx.measureText(text).width + 14, h = 16;
+    const x = px(L), y = py(L), text = L.name.toUpperCase(), w = bctx.measureText(text).width + 8, h = 16;
     const box = [x - w / 2, y - h / 2 - 12, x + w / 2, y + h / 2 - 12];
     if (box[0] < 8 || box[2] > W - 8 || box[1] < 8 || box[3] > H - 8) continue;
     if (placed.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
     placed.push(box); n++;
     bctx.globalAlpha = (active ? .32 : .9) * labA;
-    bctx.shadowColor = "rgba(0,0,0,.95)"; bctx.shadowBlur = 8;
-    bctx.fillStyle = COLS[L.col].color;
-    bctx.beginPath(); bctx.arc(box[0] + 4, y - 12, 2.6, 0, 7); bctx.fill();
-    bctx.fillStyle = "rgba(236,240,255,.86)";
-    bctx.fillText(text, box[0] + 11, y - 12);
-    bctx.shadowBlur = 0;
+    // names only, no marker: a dot here would read as a clip
+    bctx.shadowColor = C.halo; bctx.shadowBlur = 8;
+    bctx.fillStyle = C.label; bctx.textAlign = "center";
+    bctx.fillText(text, x, y - 12);
+    bctx.shadowBlur = 0; bctx.textAlign = "start";
   }
   bctx.globalAlpha = 1;
 }
@@ -454,7 +502,7 @@ function frame(now) {
       const p = clamp((now - t0 - r * 35) / 480); if (p < 1) again = true;
       const t = IT[i], x = sx + (px(t) - sx) * ease(p), y = sy + (py(t) - sy) * ease(p);
       const g = ctx.createLinearGradient(sx, sy, x, y);
-      g.addColorStop(0, "rgba(255,255,255,.65)"); g.addColorStop(1, COLS[t.col].color);
+      g.addColorStop(0, `rgba(${C.inkA},.65)`); g.addColorStop(1, COLS[t.col].color);
       ctx.strokeStyle = g; ctx.globalAlpha = .55; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(x, y); ctx.stroke();
     });
@@ -465,7 +513,7 @@ function frame(now) {
     const i = current[r], t = IT[i], x = px(t), y = py(t), col = COLS[t.col].color;
     const pin = clamp((now - t0 - r * 45) / 380), sc = pin <= 0 ? 0 : backOut(pin);
     if (pin < 1) again = true;
-    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = .95 * clamp(pin * 2);
+    ctx.globalCompositeOperation = C.glow; ctx.globalAlpha = .95 * C.glowK * clamp(pin * 2);
     const g = sprite(col, 20); ctx.drawImage(g, x - 20 * sc, y - 20 * sc, 40 * sc, 40 * sc);
     ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
     const ping = clamp((now - t0 - r * 45) / 1100);
@@ -475,19 +523,19 @@ function frame(now) {
       ctx.beginPath(); ctx.arc(x, y, 6 + 34 * ease(ping), 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
     }
     if (sc <= 0) continue;
-    ctx.fillStyle = col; ctx.strokeStyle = "#0b0e1b"; ctx.lineWidth = 2;
+    ctx.fillStyle = col; ctx.strokeStyle = C.stroke; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, 4.2 * sc, 0, 7); ctx.fill(); ctx.stroke();
     const v = verdict(t, q);
     ctx.lineWidth = 2;
-    ctx.strokeStyle = v === "ok" ? OK : v === "bad" ? BAD : "rgba(255,255,255,.85)";
+    ctx.strokeStyle = v === "ok" ? OK : v === "bad" ? BAD : `rgba(${C.inkA},.85)`;
     ctx.setLineDash(v === "bad" ? [3, 3] : []);
     ctx.beginPath(); ctx.arc(x, y, 9.5 * sc, 0, 7); ctx.stroke();
     ctx.setLineDash([]);
   }
   if (q && q.kind === "similar") {
     const s = IT[q.src], x = px(s), y = py(s);
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
   }
   // chip hover preview: ghost rings
   if (S.preview) {
@@ -495,7 +543,7 @@ function frame(now) {
     ctx.setLineDash([3, 4]); ctx.lineWidth = 1.6;
     for (const i of S.preview) {
       const t = IT[i], x = px(t), y = py(t);
-      ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.globalAlpha = a;
+      ctx.strokeStyle = `rgba(${C.inkA},.75)`; ctx.globalAlpha = a;
       ctx.beginPath(); ctx.arc(x, y, 10, 0, 7); ctx.stroke();
     }
     ctx.setLineDash([]); ctx.globalAlpha = 1;
@@ -516,24 +564,24 @@ function frame(now) {
         ctx.beginPath(); ctx.arc(x, y, 8 + 46 * f, 0, 7); ctx.stroke();
       }
       ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "lighter";
+      ctx.globalCompositeOperation = C.glow; ctx.globalAlpha = C.glowK;
       const rr = 12 + level * 120, g = sprite(col, 30);
       ctx.drawImage(g, x - rr, y - rr, rr * 2, rr * 2);
-      ctx.globalCompositeOperation = "source-over";
+      ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
       drawSpec();
     } else drawSpec();
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.stroke();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.stroke();
   }
   // hover from the panel: crosshair on the map
   if (S.hoverRow !== null && S.on.has(IT[S.hoverRow].col)) {
     const t = IT[S.hoverRow], x = px(t), y = py(t);
-    ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+    ctx.strokeStyle = `rgba(${C.inkA},.25)`; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.setLineDash([]);
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke();
   }
   if (S.hover !== null) {
     const t = IT[S.hover], x = px(t), y = py(t);
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.stroke();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.stroke();
   }
   if (again) kick();
 }
@@ -595,6 +643,7 @@ cv.onclick = e => {
 cv.ondblclick = e => { const r = cv.getBoundingClientRect(); zoomBy(.5, e.clientX - r.left, e.clientY - r.top); };
 $("zin").onclick = () => zoomBy(.67); $("zout").onclick = () => zoomBy(1.5);
 $("zreset").onclick = () => goTo({x0: 0, y0: 0, w: 1, h: 1});
+$("cx").onclick = () => $("mcallout").classList.add("off");
 $("zfit").onclick = () => { const q = S.query; if (current.length) flyTo(current.concat(q.kind === "similar" ? [q.src] : [])); };
 
 // minimap
@@ -611,7 +660,7 @@ function updateMini() {
   const d = mini.width / 150;
   mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mini.width, mini.height); mctx.drawImage(miniBase, 0, 0);
   mctx.setTransform(d, 0, 0, d, 0, 0);
-  mctx.strokeStyle = "#fff"; mctx.lineWidth = 1.5; mctx.fillStyle = "rgba(255,255,255,.08)";
+  mctx.strokeStyle = C.ink; mctx.lineWidth = 1.5; mctx.fillStyle = `rgba(${C.inkA},.08)`;
   const x = 6 + V.x0 * 138, y = 6 + (1 - V.y0 - V.h) * 92;
   mctx.fillRect(x, y, V.w * 138, V.h * 92); mctx.strokeRect(x, y, V.w * 138, V.h * 92);
 }
@@ -624,14 +673,14 @@ function renderLegend() {
   $("mlegend").innerHTML = present.map(c => `<span><i style="--c:${COLS[c].color}"></i>${COLS[c].name}</span>`).join("") +
     `<hr><span><i class="ring" style="--c:${OK}"></i>Match, label agrees ✓</span>
      <span><i class="ring dash" style="--c:${BAD}"></i>Match, label disagrees ✗</span>
-     <span><i class="ring" style="--c:#fff"></i>Match, no label ?</span>`;
+     <span><i class="ring" style="--c:${C.ink}"></i>Match, no label ?</span>`;
 }
 
 // ---------- keyboard ----------
 document.addEventListener("keydown", e => {
   const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName);
   if (e.key === "/" && !typing) { e.preventDefault(); $("q").focus(); }
-  else if (e.key === "Escape") { if (typing) $("q").blur(); else clearQuery(); }
+  else if (e.key === "Escape") { if (typing) $("q").blur(); else deselect(); }
   else if (e.key === " " && !typing && S.playing !== null && e.target === document.body) { e.preventDefault(); play(S.playing); }
 });
 
@@ -653,15 +702,15 @@ function chartWords() {
   const Wc = box.clientWidth, LW = Math.min(190, Wc * .42), X0 = LW + 14, X1 = Wc - 14, RH = 30, top = 8, Hc = top + rows.length * RH + 30;
   const x = v => X0 + v / 10 * (X1 - X0);
   let s = `<svg viewBox="0 0 ${Wc} ${Hc}" height="${Hc}">`;
-  for (let v = 0; v <= 10; v += 2) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${Hc - 24}" stroke="rgba(255,255,255,${v ? .06 : .14})"/>
-    <text x="${x(v)}" y="${Hc - 8}" fill="#8a91b0" font-size="11" text-anchor="middle">${v}</text>`;
+  for (let v = 0; v <= 10; v += 2) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${Hc - 24}" stroke="rgba(${C.inkA},${v ? .07 : .16})"/>
+    <text x="${x(v)}" y="${Hc - 8}" fill="${C.mut}" font-size="11" text-anchor="middle">${v}</text>`;
   rows.forEach((r, k) => {
     const y = top + k * RH + RH / 2, a = x(r.clap), b = x(r.gemma), tie = r.clap === r.gemma ? 5 : 0;
     s += `<g class="rowhit" data-n="${r.n}"><rect class="bgr" x="0" y="${y - RH / 2}" width="${Wc}" height="${RH}" rx="8" fill="transparent"/>
-      <text x="${LW}" y="${y + 4}" text-anchor="end" fill="#e6e9f8" font-size="12.5">${esc(r.c.title)}  ${ICON[r.c.key] || ""}</text>
-      <line x1="${Math.min(a, b)}" x2="${Math.max(a, b)}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <circle cx="${b}" cy="${y + tie}" r="6.5" fill="${MODELS.gemma.color}" stroke="#0b0e1b" stroke-width="2" data-m="gemma" data-v="${r.gemma}" style="filter:drop-shadow(0 0 5px ${MODELS.gemma.color})"/>
-      <circle cx="${a}" cy="${y - tie}" r="6.5" fill="${MODELS.clap.color}" stroke="#0b0e1b" stroke-width="2" data-m="clap" data-v="${r.clap}" style="filter:drop-shadow(0 0 5px ${MODELS.clap.color})"/></g>`;
+      <text x="${LW}" y="${y + 4}" text-anchor="end" fill="${C.text}" font-size="12.5">${esc(r.c.title)}  ${ICON[r.c.key] || ""}</text>
+      <line x1="${Math.min(a, b)}" x2="${Math.max(a, b)}" y1="${y}" y2="${y}" stroke="rgba(${C.inkA},.25)" stroke-width="2"/>
+      <circle cx="${b}" cy="${y + tie}" r="6.5" fill="${MODELS.gemma.color}" stroke="${C.stroke}" stroke-width="2" data-m="gemma" data-v="${r.gemma}" style="filter:drop-shadow(0 0 5px ${MODELS.gemma.color})"/>
+      <circle cx="${a}" cy="${y - tie}" r="6.5" fill="${MODELS.clap.color}" stroke="${C.stroke}" stroke-width="2" data-m="clap" data-v="${r.clap}" style="filter:drop-shadow(0 0 5px ${MODELS.clap.color})"/></g>`;
   });
   s += `</svg>`;
   box.querySelector("svg")?.remove(); box.insertAdjacentHTML("afterbegin", s);
@@ -696,19 +745,19 @@ function chartEmo() {
   const x = v => X0 + v / 10 * (X1 - X0), mx = 6;
   const xs = v => X0 + v / mx * (X1 - X0);
   let s = `<svg viewBox="0 0 ${Wc} ${Hc}" height="${Hc}">`;
-  for (let v = 0; v <= mx; v++) s += `<line x1="${xs(v)}" x2="${xs(v)}" y1="${top}" y2="${Hc - 24}" stroke="rgba(255,255,255,${v ? .05 : .14})"/>
-    <text x="${xs(v)}" y="${Hc - 8}" fill="#8a91b0" font-size="11" text-anchor="middle">${v}</text>`;
+  for (let v = 0; v <= mx; v++) s += `<line x1="${xs(v)}" x2="${xs(v)}" y1="${top}" y2="${Hc - 24}" stroke="rgba(${C.inkA},${v ? .06 : .16})"/>
+    <text x="${xs(v)}" y="${Hc - 8}" fill="${C.mut}" font-size="11" text-anchor="middle">${v}</text>`;
   const ch = xs(10 / 6);
   rows.forEach((r, k) => {
     const y = top + k * RH + 8;
     s += `<g class="rowhit" data-l="${r.l}"><rect class="bgr" x="0" y="${y - 6}" width="${Wc}" height="${RH - 2}" rx="8" fill="transparent"/>
-      <text x="${LW}" y="${y + 16}" text-anchor="end" fill="#e6e9f8" font-size="13">${EMO[r.l]}  ${EMO_ICON[r.l]}</text>
+      <text x="${LW}" y="${y + 16}" text-anchor="end" fill="${C.text}" font-size="13">${EMO[r.l]}  ${EMO_ICON[r.l]}</text>
       <rect x="${X0}" y="${y + 2}" width="${xs(r.clap) - X0}" height="12" rx="4" fill="${MODELS.clap.color}" data-m="clap" data-v="${r.clap.toFixed(1)}"/>
       <rect x="${X0}" y="${y + 17}" width="${xs(r.gemma) - X0}" height="12" rx="4" fill="${MODELS.gemma.color}" data-m="gemma" data-v="${r.gemma.toFixed(1)}"/>
-      <text x="${xs(r.clap) + 6}" y="${y + 12}" fill="#e6e9f8" font-size="11.5" font-weight="600">${r.clap.toFixed(1)}</text></g>`;
+      <text x="${xs(r.clap) + 6}" y="${y + 12}" fill="${C.text}" font-size="11.5" font-weight="600">${r.clap.toFixed(1)}</text></g>`;
   });
-  s += `<line x1="${ch}" x2="${ch}" y1="${top - 8}" y2="${Hc - 24}" stroke="#bcc3de" stroke-dasharray="4 4" stroke-width="1.5"/>
-    <text x="${ch + 5}" y="${top - 2}" fill="#bcc3de" font-size="11">chance 1.7</text></svg>`;
+  s += `<line x1="${ch}" x2="${ch}" y1="${top - 8}" y2="${Hc - 24}" stroke="${C.soft}" stroke-dasharray="4 4" stroke-width="1.5"/>
+    <text x="${ch + 5}" y="${top - 2}" fill="${C.soft}" font-size="11">chance 1.7</text></svg>`;
   box.querySelector("svg")?.remove(); box.insertAdjacentHTML("afterbegin", s);
   box.onmousemove = e => {
     const b = e.target.closest("rect[data-m]");
@@ -750,10 +799,10 @@ function collectionCards() {
     const d = Math.min(2, devicePixelRatio || 1), w = cm.clientWidth, h = cm.clientHeight, g = cm.getContext("2d");
     cm.width = w * d; cm.height = h * d; g.setTransform(d, 0, 0, d, 0, 0);
     const X = t => 8 + t.x * (w - 16), Y = t => 8 + (1 - t.y) * (h - 16);
-    g.fillStyle = "rgba(255,255,255,.13)";
+    g.fillStyle = `rgba(${C.inkA},.14)`;
     for (const t of IT) if (t.col !== cm.dataset.col) g.fillRect(X(t), Y(t), 1.2, 1.2);
     const col = COLS[cm.dataset.col].color, gl = sprite(col, 6);
-    g.globalCompositeOperation = "lighter"; g.globalAlpha = .12;
+    g.globalCompositeOperation = C.glow; g.globalAlpha = .12 * C.glowK;
     for (const t of IT) if (t.col === cm.dataset.col) g.drawImage(gl, X(t) - 6, Y(t) - 6, 12, 12);
     g.globalCompositeOperation = "source-over"; g.globalAlpha = .9; g.fillStyle = col;
     for (const t of IT) if (t.col === cm.dataset.col) g.fillRect(X(t) - .8, Y(t) - .8, 1.6, 1.6);
@@ -768,9 +817,20 @@ function sparks() {
   for (const id of ["spark1", "spark2"]) $(id).innerHTML = Array.from({length: 12}, (_, k) => `<i style="height:${6 + Math.abs(Math.sin(k * 1.7 + (id === "spark2" ? .4 : 0))) * 20}px"></i>`).join("");
 }
 
+// ---------- theme toggle ----------
+function renderThemeBtn() { $("theme").innerHTML = THEME === "dark" ? "☀️ Light" : "🌙 Dark"; }
+$("theme").onclick = () => {
+  THEME = THEME === "dark" ? "light" : "dark";
+  try { localStorage.setItem("ss-theme", THEME); } catch (e) {}
+  setPalette(); renderThemeBtn();
+  renderLayers(); renderLegend(); renderChips(); renderPanel(); renderMini(); chartWords(); chartEmo(); collectionCards();
+  if (S.playing !== null) showDock();
+  baseDirty = true; kick();
+};
+
 // ---------- boot ----------
 function boot() {
-  renderLayers(); renderModels(); renderLegend(); renderChips(); renderPanel(); sparks();
+  renderThemeBtn(); renderLayers(); renderModels(); renderLegend(); renderChips(); renderPanel(); sparks();
   countUp($("st-clips"), IT.length);
   countUp($("st-kinds"), new Set(IT.map(t => t.col + t.label)).size);
   resize(); renderMini();
@@ -783,5 +843,6 @@ function boot() {
   else if (h.get("ex")) runSimilar(EXAMPLES[+h.get("ex")].idx, +h.get("ex"));
   else if (h.get("q")) { $("q").value = h.get("q"); runText(h.get("q")); }
   if (h.get("play")) { S.playing = +h.get("play"); showDock(); kick(); }
+  if (h.has("light")) $("theme").click();   // screenshots only
 }
 boot();
