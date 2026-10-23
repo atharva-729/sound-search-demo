@@ -17,16 +17,26 @@ Built on the embeddings of two sister projects. Nothing is re-trained.
 
 Typed search and audio need the server. The ready-made chips also work from the static page.
 
+## Two maps
+
+- **Real audio** (`?map=real`, the default): podcasts, voices (CREMA-D moods + FSD50K speech, whispers, shouts) and music
+  (FMA, MTG-Jamendo, Musopen). The layout follows Gemma, which hears how people talk.
+- **Sound effects** (`?map=sounds`): VocalSound, ESC-50, the rest of FSD50K and Xeno-canto birds, all labelled. The layout follows CLAP.
+
+The model toggle defaults to **Auto** (averages standardised CLAP and Gemma scores for typed searches); each chip uses
+the model that scored better for it in the build log.
+
 ## Rebuild
 
 ```
 ../podcast-vibe-search/.venv/Scripts/python scripts/embed_podcasts_clap.py   # once, ~20 min, resumable
-../audio-vocab/.venv/Scripts/python scripts/build.py                         # ~2 min
-../audio-vocab/.venv/Scripts/python scripts/build.py --drop podcasts         # leave a collection out
+../audio-vocab/.venv/Scripts/python scripts/build.py real                    # ~2 min each
+../audio-vocab/.venv/Scripts/python scripts/build.py sounds
+../audio-vocab/.venv/Scripts/python scripts/build.py real --drop podcasts    # leave a collection out
 ```
 
-The layer buttons on the page hide a collection without rebuilding. `--drop` removes it from the map layout too.
-Ready-made searches live in `scripts/chips.py`. Restart the server after a rebuild.
+Ready-made searches live in `scripts/chips.py`. Restart the server after a rebuild. The single-map version is git tag
+`v1-single-map`.
 
 ## FSD50K audio (from Colab)
 

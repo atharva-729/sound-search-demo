@@ -19,8 +19,9 @@ import pandas as pd
 from audiovocab import embed
 
 PORT = 8770
-ITEMS = pd.read_parquet(HERE / "data" / "items.parquet")
-EMB = {m: np.load(HERE / "data" / f"{m}.npy") for m in ("clap", "gemma")}
+MAPS = [m for m in ("real", "sounds") if (HERE / "data" / m / "items.parquet").exists()]
+ITEMS = {m: pd.read_parquet(HERE / "data" / m / "items.parquet") for m in MAPS}
+EMB = {m: {k: np.load(HERE / "data" / m / f"{k}.npy") for k in ("clap", "gemma")} for m in MAPS}
 MODELS, LOCK = {}, threading.Lock()
 
 
@@ -45,22 +46,24 @@ class H(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlparse(self.path)
-        if u.path.startswith("/audio/"):
-            return self._audio(int(u.path.rsplit("/", 1)[-1]))
+        if u.path.startswith("/audio/"):   # /audio/<map>/<i>
+            _, _, mp, i = u.path.split("/", 3)
+            return self._audio(mp, int(i))
         if u.path == "/search":
             q = parse_qs(u.query)
-            text, m = q.get("q", [""])[0].strip(), q.get("model", ["clap"])[0]
-            if not text or m not in EMB:
+            text, m, mp = q.get("q", [""])[0].strip(), q.get("model", ["clap"])[0], q.get("map", ["real"])[0]
+            if not text or mp not in EMB or m not in EMB[mp]:
                 return self._send(b'{"error":"bad query"}', "application/json", 400)
             v = model(m).text([text])[0]
-            s = EMB[m] @ v
+            s = EMB[mp][m] @ v
             return self._send(json.dumps({"scores": np.round(s, 4).tolist()}).encode(), "application/json")
         return super().do_GET()
 
-    def _audio(self, i):
-        if not 0 <= i < len(ITEMS) or not Path(ITEMS.file[i]).exists():
+    def _audio(self, mp, i):
+        items = ITEMS.get(mp)
+        if items is None or not 0 <= i < len(items) or not Path(items.file[i]).exists():
             return self._send(b"audio not available", "text/plain", 404)
-        r = ITEMS.iloc[i]
+        r = items.iloc[i]
         mp3 = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-ss", str(r.start), "-i", r.file, "-t", str(r.dur),
                               "-ac", "1", "-b:a", "96k", "-f", "mp3", "-"], capture_output=True).stdout
         self._send(mp3, "audio/mpeg") if mp3 else self._send(b"decode failed", "text/plain", 500)
@@ -71,5 +74,5 @@ class H(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     threading.Thread(target=lambda: [model("clap"), model("gemma")], daemon=True).start()
-    print(f"http://127.0.0.1:{PORT}/", flush=True)
+    print(f"http://127.0.0.1:{PORT}/  maps: {MAPS}", flush=True)
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

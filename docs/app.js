@@ -1,5 +1,5 @@
 "use strict";
-// Sound Search: the map, the panel, the audio dock and the charts. Data: DATA from data.js (scripts/build.py).
+// Sound Search: the map, the panel, the audio dock and the charts. Data: DATA from data_<map>.js (scripts/build.py).
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -7,13 +7,21 @@ const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const ease = t => t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 const backOut = t => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
 
-const IT = DATA.items.map(([col, label, name, x, y, dur], i) => ({i, col, label, name, x, y, dur}));
+const MAP = DATA.map || "real";
+const IT = DATA.items.map(([col, label, name, x, y, dur, tags], i) => ({i, col, label, name, x, y, dur, tags: tags ? tags.split("|") : []}));
+// colour slot per collection; the two maps never show "sounds" and "music" together
 const COLS = {
-  sounds:   {name: "Sound effects", short: "Sounds", color: "#2a92e0", src: "VocalSound · ESC-50 · FSD50K, human-labelled"},
-  emotions: {name: "Emotional speech", short: "Emotions", color: "#e14d8f", src: "CREMA-D: 12 sentences, 6 moods, 91 actors"},
-  podcasts: {name: "Podcasts", short: "Podcasts", color: "#c2830f", src: "39 real shows, minutes 2–10, 20 s clips"},
+  podcasts: {name: "Podcasts", short: "Podcasts", slot: "podcasts", src: "39 real shows, minutes 2–10, 20 s clips"},
+  voices:   {name: "Voices", short: "Voices", slot: "emotions", src: "CREMA-D actors in 6 moods, plus FSD50K speech, singing, whispers, shouts"},
+  music:    {name: "Music", short: "Music", slot: "sounds", src: "FMA (11 genres), MTG-Jamendo and Musopen recordings"},
+  sounds:   {name: "Sound effects", short: "Sounds", slot: "sounds", src: "VocalSound · ESC-50 · FSD50K · Xeno-canto birds"},
 };
-const MODELS = {clap: {name: "CLAP", color: "#8f73ec"}, gemma: {name: "Gemma", color: "#5fa80f"}};
+const MODELS = {auto: {name: "Auto", color: "#a78bfa"}, clap: {name: "CLAP", color: "#8f73ec"}, gemma: {name: "Gemma", color: "#5fa80f"}};
+// the map's own model: Gemma hears how people talk (real audio), CLAP names sound events (sound effects)
+const DEF = MAP === "real" ? "gemma" : "clap";
+const M = () => S.model === "auto" ? DEF : S.model;
+const isEmo = t => t.col === "voices" && t.label in EMO;
+const EMO = {ANG: "angry", DIS: "disgusted", FEA: "afraid", HAP: "happy", SAD: "sad", NEU: "neutral"};
 let OK = "#12a28d", BAD = "#ea6236";
 // Two themes. Data colours are validated per surface (dark / light lightness band, all-pairs CVD, 3:1 contrast).
 const PAL = {
@@ -28,21 +36,22 @@ let THEME = "dark", C = PAL.dark;
 try { if (localStorage.getItem("ss-theme") === "light") THEME = "light"; } catch (e) {}
 function setPalette() {
   C = PAL[THEME];
-  for (const c in COLS) COLS[c].color = C[c];
-  MODELS.clap.color = C.clap; MODELS.gemma.color = C.gemma; OK = C.ok; BAD = C.bad;
+  for (const c in COLS) COLS[c].color = C[COLS[c].slot];
+  MODELS.auto.color = THEME === "dark" ? "#a78bfa" : "#6d28d9"; MODELS.clap.color = C.clap; MODELS.gemma.color = C.gemma; OK = C.ok; BAD = C.bad;
   document.documentElement.dataset.theme = THEME;
 }
 setPalette();
 const present = DATA.collections.filter(c => IT.some(t => t.col === c));
-const EMO = {ANG: "angry", DIS: "disgusted", FEA: "afraid", HAP: "happy", SAD: "sad", NEU: "neutral"};
+
 const EMO_ICON = {ANG: "😠", DIS: "🤢", FEA: "😨", HAP: "😄", SAD: "😔", NEU: "😐"};
-const ICON = {cough: "😷", sneeze: "🤧", laugh: "😂", sigh: "😮‍💨", throat: "🗣️", sniff: "👃", snore: "😴", crying: "😢",
+const ICON = {sports: "⚽", calm: "🧘", story: "🎭", kids: "🧒", singing: "🎤", piano: "🎹", rock: "🎸", hiphop: "🎧", jazz: "🎷",
+  edm: "🎛️", folk: "🪕", siren: "🚨", dog: "🐕", owl: "🦉", birds: "🐦", baby: "👶", cough: "😷", sneeze: "🤧", laugh: "😂", sigh: "😮‍💨", throat: "🗣️", sniff: "👃", snore: "😴", crying: "😢",
   whisper: "🤫", scream: "😱", shout: "📢", anchor: "📰", banter: "🍻", angry: "😠", sad: "😔", waves: "🌊", applause: "👏",
   typing: "⌨️", rain: "🌧️"};
 const pretty = l => EMO[l] || ({throatclearing: "throat clearing"}[l]) || String(l).replace(/_/g, " ");
 
 // ---------- state ----------
-const S = {model: "clap", on: new Set(present), k: 10, query: null, sel: null, playing: null, hover: null, hoverRow: null};
+const S = {model: "auto", on: new Set(present), k: 10, query: null, sel: null, playing: null, hover: null, hoverRow: null};
 let current = [];   // indices of the matches on screen, best first
 
 // ---------- verdicts: ✓ / ✗ from labels the search never saw ----------
@@ -50,15 +59,15 @@ function verdict(t, q) {
   if (!q) return null;
   if (q.kind === "similar") return t.label === IT[q.src].label ? "ok" : "bad";
   if (t.col === "podcasts") return "unk";
-  if (q.labels) return q.labels.has(t.label) ? "ok" : "bad";
+  if (q.labels) return q.labels.has(t.label) || t.tags.some(x => q.labels.has(x)) ? "ok" : "bad";
   return null;
 }
 
 // ---------- "by example" chips: per emotion, the CREMA-D clip whose neighbours agree with it most ----------
 const EXAMPLES = ["ANG", "SAD", "HAP", "FEA"].map(lab => {
   let best = null, bs = -1;
-  for (const t of IT) if (t.col === "emotions" && t.label === lab) {
-    const s = DATA.nn.clap[t.i].slice(0, 10).filter(j => IT[j].label === lab).length;
+  for (const t of IT) if (isEmo(t) && t.label === lab) {
+    const s = DATA.nn[DEF][t.i].slice(0, 10).filter(j => IT[j].label === lab).length;
     if (s > bs) { bs = s; best = t.i; }
   }
   const w = pretty(lab);
@@ -66,7 +75,7 @@ const EXAMPLES = ["ANG", "SAD", "HAP", "FEA"].map(lab => {
 }).filter(Boolean);
 // The honest number beside a hand-picked example: across ALL clips of a mood, how many of the 10 nearest share it.
 function typical(lab, model) {
-  const ids = IT.filter(t => t.col === "emotions" && t.label === lab);
+  const ids = IT.filter(t => isEmo(t) && t.label === lab);
   return ids.reduce((a, t) => a + DATA.nn[model][t.i].slice(0, 10).filter(j => IT[j].label === lab).length, 0) / ids.length;
 }
 
@@ -86,6 +95,7 @@ $("layers").onclick = e => {
   renderLayers(); renderMini(); recompute(true);
 };
 function renderModels() { document.querySelectorAll("#models button").forEach(b => b.classList.toggle("on", b.dataset.m === S.model)); }
+document.querySelectorAll(".maptab").forEach(a => a.classList.toggle("on", a.dataset.map === MAP));
 $("models").onclick = e => {
   const m = e.target.closest("button")?.dataset.m; if (!m || m === S.model) return;
   S.model = m; renderModels(); rerun();
@@ -93,22 +103,22 @@ $("models").onclick = e => {
 
 // ---------- chips ----------
 const GROUP_OF = {angry: "Moods", sad: "Moods"};
-const groups = {"Body sounds": [], "Places & things": [], "How people talk": [], "Moods": []};
+const groups = MAP === "real" ? {"People talking": [], "Voices": [], "Moods": [], "Music": []} : {"Body sounds": [], "Places & things": [], "Animals": []};
 DATA.chips.forEach((c, n) => (groups[GROUP_OF[c.key] || c.group] ||= []).push(n));
 function renderChips() {
   const q = S.query;
   const chip = n => { const c = DATA.chips[n];
     return `<button class="chip ${q?.chip === n ? "on" : ""}" data-chip="${n}"><span class="e">${ICON[c.key] || "🔊"}</span>${esc(c.title)}</button>`; };
   const h = Object.entries(groups).filter(([, ns]) => ns.length).map(([g, ns]) => `<span class="cg"><span class="gl">${esc(g)}</span>${ns.map(chip).join("")}${
-    g === "Moods" && EXAMPLES.length && present.includes("emotions") ? `<span class="or">or start from a clip, no words:</span>` + EXAMPLES.map((x, n) =>
+    g === "Moods" && EXAMPLES.length && IT.some(isEmo) ? `<span class="or">or start from a clip, no words:</span>` + EXAMPLES.map((x, n) =>
       `<button class="chip ex ${q?.ex === n ? "on" : ""}" data-ex="${n}" title="Plays one ${pretty(x.label)} actor clip, then lights up the clips that sound most like it"><span class="e">${EMO_ICON[x.label]}</span>${esc(x.title)}</button>`).join("") : ""}</span>`).join("");
   const live = q || S.playing !== null || S.on.size < present.length || V.w < .97;
   $("chips").innerHTML = h + `<button class="reset ${live ? "live" : ""}" id="reset" title="Clear everything and show the whole map (Esc)">↺ Reset</button>`;
 }
 $("chips").onmouseover = e => {
   const b = e.target.closest("button"); let pv = null;
-  if (b?.dataset.chip !== undefined && S.query?.chip !== +b.dataset.chip) { const c = DATA.chips[+b.dataset.chip]; pv = c[c.model].map(x => x[0]); }
-  else if (b?.dataset.ex !== undefined && S.query?.ex !== +b.dataset.ex) pv = DATA.nn[S.model][EXAMPLES[+b.dataset.ex].idx];
+  if (b?.dataset.chip !== undefined && S.query?.chip !== +b.dataset.chip) { const c = DATA.chips[+b.dataset.chip]; pv = c[S.model === "auto" ? c.model : S.model].map(x => x[0]); }
+  else if (b?.dataset.ex !== undefined && S.query?.ex !== +b.dataset.ex) pv = DATA.nn[M()][EXAMPLES[+b.dataset.ex].idx];
   const ids = pv ? pv.filter(i => S.on.has(IT[i].col)).slice(0, 10) : null;
   if (String(ids) !== String(S.preview)) { S.preview = ids; S.previewT = performance.now(); kick(); }
 };
@@ -157,19 +167,21 @@ function recompute(fly) {
 }
 function runChip(n, useDefault) {
   const c = DATA.chips[n];
-  if (useDefault && S.model !== c.model) { S.model = c.model; renderModels(); }
+  const m = S.model === "auto" ? c.model : S.model;
   setQuery({kind: "chip", chip: n, key: c.key, title: c.title, icon: ICON[c.key] || "🔊", labels: c.labels.length ? new Set(c.labels) : null,
-            scope: c.scope, ranked: c[S.model].map(x => x[0]), scores: new Map(c[S.model].map(x => [x[0], x[1]]))});
+            scope: c.scope, model: m, ranked: c[m].map(x => x[0]), scores: new Map(c[m].map(x => [x[0], x[1]]))});
 }
 let textSeq = 0;
 async function runText(text) {
   const my = ++textSeq, model = S.model;
-  setQuery({kind: "text", text, title: `“${text}”`, icon: "⌨️", labels: null, ranked: [], loading: true});
+  setQuery({kind: "text", text, title: `“${text}”`, icon: "⌨️", labels: null, ranked: [], loading: true, model});
   $("sweep").classList.add("on");
   try {
-    const r = await fetch(`/search?model=${model}&q=${encodeURIComponent(text)}`);
-    if (!r.ok) throw new Error(r.status);
-    const s = (await r.json()).scores;
+    const get = async m => { const r = await fetch(`/search?map=${MAP}&model=${m}&q=${encodeURIComponent(text)}`); if (!r.ok) throw new Error(r.status); return (await r.json()).scores; };
+    const z = a => { const mu = a.reduce((x, y) => x + y, 0) / a.length, sd = Math.sqrt(a.reduce((x, y) => x + (y - mu) ** 2, 0) / a.length) || 1; return a.map(v => (v - mu) / sd); };
+    let s;
+    if (model === "auto") { const [a, b] = await Promise.all([get("clap"), get("gemma")]); const za = z(a), zb = z(b); s = za.map((v, i) => (v + zb[i]) / 2); }
+    else s = await get(model);
     if (my !== textSeq) return;
     const ranked = s.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 500);
     const ch = DATA.chips.find(c => c.title.toLowerCase() === text.toLowerCase());
@@ -185,8 +197,8 @@ async function runText(text) {
 function runSimilar(idx, ex) {
   const t = IT[idx];
   S.sel = idx;
-  setQuery({kind: "similar", src: idx, ex, title: "Clips that sound like it", icon: t.col === "emotions" ? EMO_ICON[t.label] : "≈", labels: null,
-            ranked: DATA.nn[S.model][idx]});
+  setQuery({kind: "similar", src: idx, ex, title: "Clips that sound like it", icon: isEmo(t) ? EMO_ICON[t.label] : "≈", labels: null,
+            model: M(), ranked: DATA.nn[M()][idx]});
 }
 function rerun() {
   const q = S.query; if (!q) return;
@@ -203,7 +215,7 @@ function playBest() {
 function deselect() { clearQuery(); stopAudio(); S.sel = null; goTo({x0: 0, y0: 0, w: 1, h: 1}); }
 function resetAll() {
   S.on = new Set(present); S.k = 10; S.preview = null; $("q").value = "";
-  if (S.model !== "clap") { S.model = "clap"; renderModels(); }
+  if (S.model !== "auto") { S.model = "auto"; renderModels(); }
   renderLayers(); renderMini(); deselect();
 }
 
@@ -221,13 +233,21 @@ function labelMix(ids) {
   ids.forEach(i => { const l = kindOf(IT[i]); m.set(l, (m.get(l) || 0) + 1); });
   return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([l, n]) => `<span><b>${n}×</b> ${esc(l)}</span>`).join("");
 }
+const SUGG = MAP === "real"
+  ? [["anchor", "podcasts", "A way of talking, found in real podcasts"], ["piano", "music", "Music, described in words"]]
+  : [["waves", "sounds", "A sound effect, named in words"], ["owl", "sounds", "A real field recording"]];
+const ONMAP = MAP === "real"
+  ? `<b>Real recordings of people and music.</b> Podcasts (how people talk), voices (moods, whispers, singing, kids) and music (11 genres).
+     <div class="tryline">Try: <i>“someone nervous”</i>, <i>“two people arguing”</i>, <i>“late-night radio host”</i>, <i>“sad piano”</i></div>
+     <div class="mhow"><b>Model:</b> leave it on <b>Auto</b>. Gemma hears <b>how people talk</b>; CLAP knows <b>music and sound effects</b>. Auto asks both.</div>`
+  : `<b>Labelled sound effects and nature.</b> Coughs, sneezes, rain, sirens, dogs, birds: every clip has a human label, so each search is scored ✓ / ✗.
+     <div class="tryline">Try: <i>“a door slamming”</i>, <i>“glass breaking”</i>, <i>“a crowd cheering”</i></div>
+     <div class="mhow"><b>Model:</b> CLAP is the expert here (it learned from captioned sound effects). Auto leans on it.</div>`;
 function emptyPanel() {
-  const sg = [];
-  const w = DATA.chips.findIndex(c => c.key === "waves"), a = DATA.chips.findIndex(c => c.key === "anchor");
-  if (w >= 0) sg.push(`<button class="sg" data-chip="${w}" style="--c:${COLS.sounds.color}"><span class="e">🌊</span><span><div class="t">Sea waves</div><div class="s">A sound effect, named in words</div></span></button>`);
-  if (a >= 0 && present.includes("podcasts")) sg.push(`<button class="sg" data-chip="${a}" style="--c:${COLS.podcasts.color}"><span class="e">📰</span><span><div class="t">News anchor reading headlines</div><div class="s">A way of talking, in real podcasts</div></span></button>`);
-  if (EXAMPLES.length) sg.push(`<button class="sg" data-ex="0" style="--c:${COLS.emotions.color}"><span class="e">😠</span><span><div class="t">Angry clip → similar</div><div class="s">No words: plays an angry clip, finds ones like it</div></span></button>`);
-  return `<div class="empty"><h3>Where should we listen?</h3><p>Every dot is a clip. Clips that sound alike sit together.</p>
+  const sg = SUGG.map(([k, col, sub]) => { const n = DATA.chips.findIndex(c => c.key === k); if (n < 0 || !present.includes(col)) return "";
+    return `<button class="sg" data-chip="${n}" style="--c:${COLS[col].color}"><span class="e">${ICON[k] || "🔊"}</span><span><div class="t">${esc(DATA.chips[n].title)}</div><div class="s">${sub}</div></span></button>`; });
+  if (EXAMPLES.length) sg.push(`<button class="sg" data-ex="0" style="--c:${COLS.voices.color}"><span class="e">😠</span><span><div class="t">Angry clip → similar</div><div class="s">No words: plays an angry clip, finds ones like it</div></span></button>`);
+  return `<div class="empty"><div class="onmap"><div class="kick" style="margin-bottom:3px">On this map</div>${ONMAP}</div><h3>Where should we listen?</h3><p>Every dot is a clip. Clips that sound alike sit together.</p>
     <div class="sugg">${sg.join("")}</div>
     <div class="how3"><div><span>1</span>Pick a search above, or type your own words</div><div><span>2</span>Matches light up on the map, and are scored ✓ / ✗ here</div><div><span>3</span>Click any dot or row to hear it</div></div>
     <div class="wbox" id="clusters"><h4>🏷️ What the capital words on the map mean</h4><ul>
@@ -238,7 +258,8 @@ function emptyPanel() {
 function renderPanel() {
   const q = S.query, P = $("panel");
   if (!q) { P.innerHTML = emptyPanel(); return; }
-  const mp = q.kind === "chip" || q.kind === "text" || q.kind === "similar" ? `<span class="mp" style="--c:${MODELS[S.model].color}">${MODELS[S.model].name}</span>` : "";
+  const qm = q.model || M();
+  const mp = `<span class="mp" style="--c:${MODELS[qm].color}">${qm === "auto" ? "Auto: CLAP + Gemma" : MODELS[qm].name}</span>`;
   const kind = {chip: "Ready-made search", text: "Your words", similar: "Search by example"}[q.kind];
   let h = `<div class="phead"><button class="pclear" data-clear title="Clear (Esc)">✕</button><div class="qrow"><div class="qicon">${q.icon}</div><div style="min-width:0"><div class="qkind">${kind} ${mp}</div>
     <div class="qtitle">${esc(q.title)}</div></div></div>`;
@@ -258,8 +279,8 @@ function renderPanel() {
     h += `<div class="score">${donut(0, 0, C.mut)}<div><div class="sline">${q.kind === "text" ? "No answer key for your own words." : "Podcasts have no clip labels."} <b>Listen</b> and judge.</div>
       <div class="mix">${labelMix(current)}</div></div></div>`;
   }
-  if (q.kind === "similar" && IT[q.src].col === "emotions")
-    h += `<div class="note">${q.ex !== undefined ? "Hand-picked as the most typical clip. " : ""}Across <b>all</b> ${esc(pretty(IT[q.src].label))} clips, about <b>${typical(IT[q.src].label, S.model).toFixed(1)} of 10</b> neighbours share the mood (chance 1.7).</div>`;
+  if (q.kind === "similar" && isEmo(IT[q.src]))
+    h += `<div class="note">${q.ex !== undefined ? "Hand-picked as the most typical clip. " : ""}Across <b>all</b> ${esc(pretty(IT[q.src].label))} clips, about <b>${typical(IT[q.src].label, M()).toFixed(1)} of 10</b> neighbours share the mood (chance 1.7).</div>`;
   h += `</div>`;
   if (!current.length) {
     const sc = q.scope ? q.scope.filter(c => !S.on.has(c)).map(c => COLS[c].short) : [];
@@ -311,7 +332,7 @@ function play(i) {
   initAudio();
   if (S.playing === i && audio.src) { audio.paused ? audio.play().catch(() => {}) : audio.pause(); return; }
   S.playing = i; S.sel = i;
-  audio.src = `/audio/${i}`;
+  audio.src = `/audio/${MAP}/${i}`;
   audio.play().catch(() => {});
   showDock(); syncRows(); kick();
 }
@@ -410,15 +431,15 @@ const SYN = {coughing: "cough", sneezing: "sneeze", laughing: "laughter", "chuck
   sigh: "sighs", sniff: "sniffs", train: "trains", engine: "engines", car: "engines", bus: "engines", truck: "engines", motorcycle: "engines",
   "church bells": "bells", "bicycle bell": "bells", screaming: "screams", shout: "shouts", whispering: "whispers", "hand saw": "sawing",
   "mouse click": "clicks", "clock tick": "ticking", "clock alarm": "alarms", "vacuum cleaner": "vacuum", "glass breaking": "glass breaking",
-  "toilet flush": "toilet flush", pig: "pigs", cow: "cows", sheep: "sheep", crow: "crows", "chewing and mastication": "chewing"};
-const kindOf = t => { if (t.col === "podcasts") return t.label; if (t.col === "emotions") return EMO[t.label]; const p = pretty(t.label).toLowerCase(); return SYN[p] || p; };
+  "toilet flush": "toilet flush", "singing": "singing", pig: "pigs", cow: "cows", sheep: "sheep", crow: "crows", "chewing and mastication": "chewing"};
+const kindOf = t => { if (t.col === "podcasts" || t.col === "music") return t.label; if (isEmo(t)) return EMO[t.label]; const p = pretty(t.label).toLowerCase(); return SYN[p] || p; };
 const cap = s => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 const LABELS = (() => {
   const g = new Map();
   for (const t of IT) {
     let name;
-    if (t.col === "emotions") name = "acted emotions";
-    else if (t.col === "podcasts") name = t.label;
+    if (isEmo(t)) name = "acted emotions";
+    else if (t.col === "podcasts" || t.col === "music") name = t.label;
     else { const p = pretty(t.label).toLowerCase(); name = SYN[p] || p; }
     const k = t.col + "|" + name;
     if (!g.has(k)) g.set(k, {col: t.col, name, pts: []});
@@ -748,7 +769,7 @@ function chartWords() {
     <li><b>Mood words score 0 for both.</b> That is not the end of the story ↓</li>`;
 }
 function chartEmo() {
-  const box = $("ch-emo"), labs = Object.keys(EMO).filter(l => IT.some(t => t.col === "emotions" && t.label === l));
+  const box = $("ch-emo"), labs = Object.keys(EMO).filter(l => IT.some(t => isEmo(t) && t.label === l));
   if (!labs.length) { box.closest(".sec").style.display = "none"; return; }
   const rows = labs.map(l => ({l, clap: typical(l, "clap"), gemma: typical(l, "gemma")})).sort((a, b) => b.clap - a.clap);
   const Wc = box.clientWidth, LW = 120, X0 = LW + 12, X1 = Wc - 40, RH = 44, top = 18, Hc = top + rows.length * RH + 28;
@@ -779,13 +800,13 @@ function chartEmo() {
     const b = e.target.closest("rect[data-m]"); if (b) { S.model = b.dataset.m; renderModels(); }
     const lab = g.dataset.l;
     let best = null, bs = -1;
-    for (const t of IT) if (t.col === "emotions" && t.label === lab) {
-      const sc = DATA.nn[S.model][t.i].slice(0, 10).filter(j => IT[j].label === lab).length; if (sc > bs) { bs = sc; best = t.i; }
+    for (const t of IT) if (isEmo(t) && t.label === lab) {
+      const sc = DATA.nn[M()][t.i].slice(0, 10).filter(j => IT[j].label === lab).length; if (sc > bs) { bs = sc; best = t.i; }
     }
     if (best !== null) { runSimilar(best); goTop(); }
   };
   const angry = DATA.chips.find(c => c.key === "angry");
-  const typed = angry ? chipScore(angry, "clap") : 0, clicked = typical("ANG", "clap");
+  const typed = angry ? Math.max(chipScore(angry, "clap"), chipScore(angry, "gemma")) : 0, clicked = typical("ANG", "clap");
   $("t-typed").innerHTML = `${typed}<small> / 10</small>`;
   $("t-clicked").innerHTML = `${clicked.toFixed(1)}<small> / 10</small>`;
   const top2 = rows.slice(0, 2).map(r => EMO[r.l]);
@@ -797,11 +818,11 @@ function chartEmo() {
 function collectionCards() {
   $("colcards").innerHTML = present.map(c => {
     const pts = IT.filter(t => t.col === c), m = new Map();
-    pts.forEach(t => { const l = c === "sounds" ? (SYN[pretty(t.label).toLowerCase()] || pretty(t.label).toLowerCase()) : pretty(t.label); m.set(l, (m.get(l) || 0) + 1); });
+    pts.forEach(t => { const l = kindOf(t); m.set(l, (m.get(l) || 0) + 1); });
     const top = [...m.entries()].sort((a, b) => b[1] - a[1]);
-    const shown = c === "sounds" ? 14 : 10;
-    const ic = l => c === "emotions" ? EMO_ICON[Object.keys(EMO).find(k => EMO[k] === l)] + " " : "";
-    const body = `<canvas class="cmap" data-col="${c}"></canvas><div class="pills">${top.slice(0, shown).map(([l, n]) => `<span>${ic(l)}${esc(l)}${c === "sounds" ? "" : ` <b>${n}</b>`}</span>`).join("")}${top.length > shown ? `<span>+${top.length - shown} more</span>` : ""}</div>`;
+    const shown = c === "podcasts" ? 10 : 14;
+    const ic = l => c === "voices" && Object.values(EMO).includes(l) ? EMO_ICON[Object.keys(EMO).find(k => EMO[k] === l)] + " " : "";
+    const body = `<canvas class="cmap" data-col="${c}"></canvas><div class="pills">${top.slice(0, shown).map(([l, n]) => `<span>${ic(l)}${esc(l)}${c === "podcasts" ? ` <b>${n}</b>` : ""}</span>`).join("")}${top.length > shown ? `<span>+${top.length - shown} more</span>` : ""}</div>`;
     return `<div class="ccard" style="--c:${COLS[c].color}"><h3><i></i>${COLS[c].name}</h3><div class="big">${pts.length.toLocaleString()}</div>
       <div class="src">${COLS[c].src} · ${top.length} kinds</div>${body}<button class="rand" data-col="${c}">▶ Play a random one</button></div>`;
   }).join("");

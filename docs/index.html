@@ -288,6 +288,17 @@ h1 .g { background: var(--gradtext); -webkit-background-clip: text; background-c
 .wbox b { color: var(--ink); }
 .wbox.flash { animation: wflash 1.2s ease-out 2; }
 @keyframes wflash { 0% { box-shadow: 0 0 0 0 rgba(167,139,250,.7); } 100% { box-shadow: 0 0 0 14px rgba(167,139,250,0); } }
+.maptabs { display: flex; gap: 4px; padding: 3px; border-radius: 14px; background: rgba(var(--fg), .05); border: 1px solid var(--line2); }
+.maptab { display: flex; flex-direction: column; padding: 5px 14px; border-radius: 11px; color: var(--soft); text-decoration: none; font-weight: 600; font-size: 13.5px; line-height: 1.2; }
+.maptab small { font-weight: 400; font-size: 10.5px; color: var(--mut); }
+.maptab:hover { color: var(--ink); background: rgba(var(--fg), .05); }
+.maptab.on { color: #07080f; background: var(--grad); box-shadow: 0 0 20px rgba(167,139,250,.45); }
+.maptab.on small { color: rgba(7,8,15,.7); }
+.onmap { margin: -2px 0 16px; padding: 11px 13px; border-radius: 14px; border: 1px solid var(--line2); background: rgba(var(--fg), .035); font-size: 12.8px; color: var(--soft); }
+.onmap b { color: var(--ink); }
+.onmap .tryline { margin-top: 6px; color: var(--mut); }
+.onmap .tryline i { color: var(--ink); font-style: normal; background: rgba(var(--fg), .07); padding: 0 5px; border-radius: 5px; }
+.onmap .mhow { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--line2); }
 .toast { position: fixed; top: 16px; left: 50%; transform: translate(-50%, -150%); z-index: 40; background: rgba(var(--bgc), .95); border: 1px solid rgba(234,98,54,.6);
   color: var(--ink); padding: 9px 16px; border-radius: 12px; font-size: 13px; transition: transform .35s; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .toast.on { transform: translate(-50%, 0); }
@@ -383,6 +394,10 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
 <div class="wrap">
   <div class="topbar">
     <div class="brand"><span class="eq"><i></i><i></i><i></i><i></i><i></i></span>Sound Search</div>
+    <nav class="maptabs" aria-label="Choose a map">
+      <a class="maptab" data-map="real" href="?map=real">🎙️ Real audio<small>talk · voices · music</small></a>
+      <a class="maptab" data-map="sounds" href="?map=sounds">🔊 Sound effects<small>labelled, scored ✓ / ✗</small></a>
+    </nav>
     <div class="stats">
       <span class="stat"><b id="st-clips">0</b> clips</span>
       <span class="stat"><b id="st-kinds">0</b> kinds of sound</span>
@@ -394,7 +409,7 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
   <div class="hero">
     <div>
       <h1>Search sound, <span class="g">not words.</span></h1>
-      <p class="tag">Coughs, sighs, waves, an angry tone: no transcript holds them. <a href="#how">How it works ↓</a></p>
+      <p class="tag">A news anchor's cadence, an angry tone, a jazz trumpet: no transcript holds them. <a href="#how">How it works ↓</a></p>
     </div>
     <form class="sbox" id="form" autocomplete="off">
       <div class="sin">
@@ -402,8 +417,9 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
         <input id="q" aria-label="Search the sound">
         <span class="kbd" title="Press / to search">/</span>
         <span class="mseg" id="models" role="group" aria-label="Model">
-          <button type="button" data-m="clap" style="--c:var(--clap)">CLAP<small>names sounds</small></button>
-          <button type="button" data-m="gemma" style="--c:var(--gemma)">Gemma<small>hears talk</small></button>
+          <button type="button" data-m="auto" style="--c:#a78bfa" title="Asks both models and combines them. Best default.">Auto<small>best of both</small></button>
+          <button type="button" data-m="clap" style="--c:var(--clap)" title="Trained on captioned sound effects: best for sound effects and music">CLAP<small>sounds · music</small></button>
+          <button type="button" data-m="gemma" style="--c:var(--gemma)" title="Best at how people talk: tone, pace, style">Gemma<small>people talking</small></button>
         </span>
         <button class="go" type="submit">Search</button>
       </div>
@@ -520,7 +536,11 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
 </div>
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="none"></audio>
-<script src="data.js"></script>
+<script>
+  // which map: ?map=real (default) or ?map=sounds
+  window.MAPNAME = new URLSearchParams(location.search).get("map") === "sounds" ? "sounds" : "real";
+  document.write(`<script src="data_${window.MAPNAME}.js"><\/script>`);
+</script>
 <script src="app.js"></script>
 </body>
 </html>
