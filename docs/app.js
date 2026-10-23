@@ -229,7 +229,11 @@ function emptyPanel() {
   if (EXAMPLES.length) sg.push(`<button class="sg" data-ex="0" style="--c:${COLS.emotions.color}"><span class="e">😠</span><span><div class="t">Angry clip → similar</div><div class="s">No words: plays an angry clip, finds ones like it</div></span></button>`);
   return `<div class="empty"><h3>Where should we listen?</h3><p>Every dot is a clip. Clips that sound alike sit together.</p>
     <div class="sugg">${sg.join("")}</div>
-    <div class="how3"><div><span>1</span>Pick a search above, or type your own words</div><div><span>2</span>Matches light up on the map, and are scored ✓ / ✗ here</div><div><span>3</span>Click any dot or row to hear it</div></div></div>`;
+    <div class="how3"><div><span>1</span>Pick a search above, or type your own words</div><div><span>2</span>Matches light up on the map, and are scored ✓ / ✗ here</div><div><span>3</span>Click any dot or row to hear it</div></div>
+    <div class="wbox" id="clusters"><h4>🏷️ What the capital words on the map mean</h4><ul>
+      <li><b>The model only places the clips.</b> The words are added afterwards, from the datasets' human labels.</li>
+      <li>If most clips of one label (cough, dogs, rain…) sit tightly together, the label is written at their centre. Podcasts are named by show type; acted emotions share one island.</li>
+      <li><b>No word over an area</b>: that kind of sound is spread out. More words appear as you zoom in.</li></ul></div></div>`;
 }
 function renderPanel() {
   const q = S.query, P = $("panel");
@@ -644,6 +648,12 @@ cv.ondblclick = e => { const r = cv.getBoundingClientRect(); zoomBy(.5, e.client
 $("zin").onclick = () => zoomBy(.67); $("zout").onclick = () => zoomBy(1.5);
 $("zreset").onclick = () => goTo({x0: 0, y0: 0, w: 1, h: 1});
 $("cx").onclick = () => $("mcallout").classList.add("off");
+$("clink").onclick = e => {   // the explanation lives in the start-up panel
+  e.preventDefault();
+  if (S.query) deselect();
+  const b = $("clusters"); if (!b) return;
+  b.scrollIntoView({block: "nearest", behavior: "smooth"}); b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash");
+};
 $("zfit").onclick = () => { const q = S.query; if (current.length) flyTo(current.concat(q.kind === "similar" ? [q.src] : [])); };
 
 // minimap

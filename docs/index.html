@@ -282,6 +282,12 @@ h1 .g { background: var(--gradtext); -webkit-background-clip: text; background-c
 .mcallout .cx { border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px; padding: 0 0 0 4px; }
 @keyframes callout { 0% { box-shadow: 0 0 0 0 rgba(167,139,250,.55); } 100% { box-shadow: 0 0 0 14px rgba(167,139,250,0); } }
 @media (max-width: 1100px) { .mcallout { max-width: calc(100% - 28px); top: 56px; } }
+.wbox { margin-top: 16px; padding: 12px 13px; border-radius: 14px; border: 1px solid rgba(167,139,250,.45); background: rgba(167,139,250,.07); font-size: 12.5px; color: var(--soft); }
+.wbox h4 { margin: 0 0 6px; font-size: 13.5px; color: var(--ink); display: flex; gap: 7px; align-items: center; }
+.wbox ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.wbox b { color: var(--ink); }
+.wbox.flash { animation: wflash 1.2s ease-out 2; }
+@keyframes wflash { 0% { box-shadow: 0 0 0 0 rgba(167,139,250,.7); } 100% { box-shadow: 0 0 0 14px rgba(167,139,250,0); } }
 .toast { position: fixed; top: 16px; left: 50%; transform: translate(-50%, -150%); z-index: 40; background: rgba(var(--bgc), .95); border: 1px solid rgba(234,98,54,.6);
   color: var(--ink); padding: 9px 16px; border-radius: 12px; font-size: 13px; transition: transform .35s; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .toast.on { transform: translate(-50%, 0); }
@@ -415,7 +421,7 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
         <button id="zfit" title="Fly to the matches">Fly to matches</button><button id="zreset" title="Show everything">Whole map</button>
       </div>
       <div class="mlegend" id="mlegend"></div>
-      <div class="mcallout" id="mcallout"><span class="ci">🏷️</span><div><b>The <span class="tag">CAPITAL WORDS</span> name the clusters</b>: the most common human label of the clips around them. They are names, not dots. <a href="#clusters">How they're made ↓</a>
+      <div class="mcallout" id="mcallout"><span class="ci">🏷️</span><div><b>The <span class="tag">CAPITAL WORDS</span> name the clusters</b>: the most common human label of the clips around them. They are names, not dots. <a href="#clusters" id="clink">How they're made →</a>
         <div class="ch">Each dot is one clip: hover to peek, click to play, scroll to zoom, drag to pan.</div></div><button class="cx" id="cx" aria-label="Hide this note">✕</button></div>
       <canvas id="mini" title="Overview: click to jump"></canvas>
       <div class="tip" id="tip"></div>
@@ -479,15 +485,6 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
         <div class="node vec"><div class="spark" id="spark2"></div><div><div class="t">A vector</div><div class="s">same space as the clips</div></div></div><div class="arrow">→</div>
         <div class="node"><span class="e">🎯</span><div><div class="t">Nearest clips light up</div><div class="s">cosine similarity</div></div></div>
       </div>
-    </div>
-    <div class="cardx" id="clusters" style="margin-top:14px">
-      <div class="kick" style="margin-bottom:4px">The floating words</div>
-      <h3 style="margin:0 0 8px;font-size:17px">What the capital words on the map mean</h3>
-      <ul class="pts" style="margin-top:4px">
-        <li><mark class="hl">The model only places the clips.</mark> The words are added afterwards, from the datasets' human labels.</li>
-        <li>For every label (cough, dogs, rain…), if most of its clips sit <b>tightly together</b>, the label is written at their centre. Podcast areas are named by <b>show type</b> (news briefing, comedy chat…); all acted emotions share one island.</li>
-        <li><b>No word over an area</b> means that kind of sound is spread out: the model doesn't group it. More words appear as you zoom in.</li>
-      </ul>
     </div>
     <ul class="pts">
       <li><b>Search by example</b> skips words: it ranks clips by how close their vectors are to the clip you picked.</li>
