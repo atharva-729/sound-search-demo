@@ -9,7 +9,7 @@ const backOut = t => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
 
 const MAP = DATA.map || "real";
 // true when served by scripts/serve.py on this machine; false on GitHub Pages
-const LOCAL = ["127.0.0.1", "localhost"].includes(location.hostname);
+const LOCAL = !!window.BUNDLE || ["127.0.0.1", "localhost"].includes(location.hostname);
 const IT = DATA.items.map(([col, label, name, x, y, dur, tags], i) => ({i, col, label, name, x, y, dur, tags: tags ? tags.split("|") : []}));
 // colour slot per collection; the two maps never show "sounds" and "music" together
 const COLS = {
@@ -271,7 +271,7 @@ function renderPanel() {
       <div style="min-width:0"><div class="sk">You started from this clip</div><div class="rn">${esc(cap(sc.name))}</div></div></div>`;
   }
   if (q.loading) { P.innerHTML = h + `</div><div class="loading">Listening to ${IT.length.toLocaleString()} clips…${"<div class='shim'></div>".repeat(5)}</div>`; return; }
-  if (q.error) { P.innerHTML = h + `</div><div class="err">Typed search runs the models live, so it needs the local version (scripts/serve.py). The ready-made searches and “→ similar” work here.</div>`; return; }
+  if (q.error) { P.innerHTML = h + `</div><div class="err">Typed search runs the models live, so it needs ${window.BUNDLE ? "the full version: double-click start.bat (see START HERE)" : "the local version (scripts/serve.py)"}. The ready-made searches and “→ similar” work here.</div>`; return; }
   const v = current.map(i => verdict(IT[i], q)), lab = v.filter(x => x === "ok" || x === "bad"), ok = v.filter(x => x === "ok").length;
   if (lab.length) {
     const what = q.kind === "similar" ? `the same kind as the clip you picked (<b>${esc(pretty(IT[q.src].label))}</b>)` : "<b>right</b>, by their human labels";
@@ -321,6 +321,7 @@ $("panel").onmouseleave = () => { S.hoverRow = null; kick(); };
 const audio = $("audio");
 let AC = null, analyser = null, freq = null, wave = null, level = 0;
 function initAudio() {
+  if (location.protocol === "file:") return;   // browsers mute file:// audio routed through Web Audio; play it plain
   if (AC) { if (AC.state === "suspended") AC.resume(); return; }
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -334,7 +335,7 @@ function play(i) {
   initAudio();
   if (S.playing === i && audio.src) { audio.paused ? audio.play().catch(() => {}) : audio.pause(); return; }
   S.playing = i; S.sel = i;
-  audio.src = `/audio/${MAP}/${i}`;
+  audio.src = window.BUNDLE ? `clips/${MAP}/${i}.mp3` : `/audio/${MAP}/${i}`;
   audio.play().catch(() => {});
   showDock(); syncRows(); kick();
 }

@@ -1,0 +1,38 @@
+SOUND SEARCH - search audio by how it sounds, not by words
+==========================================================
+
+Unzip the folder anywhere (not inside the zip preview). Then pick one:
+
+1) QUICK - no setup, works offline
+   Open  web\index.html  (double-click; Chrome or Edge).
+   Works: both maps, every ready-made search, playing every clip, "-> similar", charts, light/dark.
+   Not here: typing your own search.
+
+2) FULL - adds typing your own search
+   Windows: double-click  start.bat
+   Mac:     double-click  start.command  (if blocked: right-click > Open)
+   The first time it sets itself up (about 1 GB download, 5-10 minutes, needs internet once).
+   After that it opens the page in your browser within seconds. Keep the black window open while presenting.
+   Wait for "Models ready" before the first typed search.
+
+   Sharing on your network instead of presenting from your laptop:
+   run  start.bat --lan  and give people the "Others on this network" link it prints.
+
+
+A 3-MINUTE DEMO
+---------------
+Real audio map (opens first):
+  1. Click "News anchor reading headlines": news podcasts light up, the top one plays. No transcript was used.
+  2. Click "An angry voice": typing the mood finds nothing (0 of 10).
+     Then click "Angry clip -> similar": it plays an angry clip and finds mostly angry voices.
+     The model hears the mood but can't name it.
+  3. Click "Classical piano" or "Jazz": music by genre, scored right/wrong.
+  4. Type your own: "someone nervous", "two people arguing", "late-night radio host". Leave the model on Auto.
+Sound effects tab:
+  5. Click "Owl hooting" or "Coughing": 9-10 of 10 right, scored against human labels.
+Anywhere: click any dot on the map to hear it. Reset (top right) clears everything. Esc does the same.
+
+Which model? Leave it on Auto. Gemma hears how people talk; CLAP knows sound effects and music.
+
+Note: the audio comes from podcasts and research datasets with their own licences.
+Internal demo use only: please don't post the clips publicly.
