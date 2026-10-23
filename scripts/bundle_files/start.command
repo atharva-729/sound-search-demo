@@ -7,7 +7,7 @@ if ! command -v uv >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/uv" ]; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
-export UV_NATIVE_TLS=1
+export UV_NATIVE_TLS=1 UV_SYSTEM_CERTS=1
 if [ ! -x ".venv/bin/python" ]; then
   echo; echo "  First run: setting up Python and packages (5-10 minutes, once)."; echo
   "$UV" venv --python 3.12 .venv && "$UV" pip install --python .venv/bin/python -r requirements.txt || {
