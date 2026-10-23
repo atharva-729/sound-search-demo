@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Search</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2; --surface: #fcfcfb; --bg3: #ebe9e4; --line: #dedcd6;
+  --ink: #0b0b0b; --soft: #52514e; --mut: #85837d;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a;
+  --hl: #2a78d6; --ok: #1d7f3e; --bad: #c43c3c; --unk: #52514e;
+  --chip: #ffffff; --chipon: #0b0b0b; --chipontext: #ffffff;
+  --mark: #fff1b8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --bg3: #262624; --line: #33332f;
+    --ink: #f0efec; --soft: #c3c2b7; --mut: #8d8c84;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70;
+    --hl: #3987e5; --ok: #4cc06e; --bad: #ef6b6b; --unk: #c3c2b7;
+    --chip: #1f1f1d; --chipon: #f0efec; --chipontext: #121211;
+    --mark: #4a3f12;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --bg3: #262624; --line: #33332f;
+  --ink: #f0efec; --soft: #c3c2b7; --mut: #8d8c84;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70;
+  --hl: #3987e5; --ok: #4cc06e; --bad: #ef6b6b; --unk: #c3c2b7;
+  --chip: #1f1f1d; --chipon: #f0efec; --chipontext: #121211;
+  --mark: #4a3f12;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 14px 20px 40px; }
+h1 { font-size: 21px; margin: 0; letter-spacing: -0.01em; }
+.sub { color: var(--soft); margin: 2px 0 0; font-size: 14px; }
+.sub b { color: var(--ink); background: var(--mark); padding: 0 3px; border-radius: 3px; }
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.toggles { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--soft); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--chip); color: var(--soft); padding: 5px 10px; font: inherit; cursor: pointer; }
+.seg button.on { background: var(--chipon); color: var(--chipontext); }
+.layer { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; padding: 4px 8px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--chip); }
+.layer.off { opacity: .45; }
+.layer i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.searchrow { display: flex; gap: 8px; margin: 12px 0 8px; }
+.searchrow input { flex: 1; font: inherit; font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); }
+.searchrow button { font: inherit; padding: 0 16px; border-radius: 10px; border: 0; background: var(--chipon); color: var(--chipontext); cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-bottom: 10px; }
+.cg { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.cg .gl { font-size: 11.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
+.chip { border: 1px solid var(--line); background: var(--chip); color: var(--ink); padding: 3px 10px; border-radius: 999px;
+  font: inherit; font-size: 13px; cursor: pointer; }
+.chip.on { background: var(--chipon); color: var(--chipontext); border-color: var(--chipon); }
+.chip.ex { border-style: dashed; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.mapcard { position: relative; padding: 8px; }
+canvas { display: block; width: 100%; height: min(66vh, 720px); min-height: 360px; cursor: crosshair; }
+.legend { position: absolute; left: 16px; bottom: 12px; font-size: 12px; color: var(--soft); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; display: grid; gap: 2px; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.legend .ring { width: 11px; height: 11px; border: 2px solid; background: none; }
+.zoom { position: absolute; right: 16px; top: 14px; display: flex; gap: 6px; }
+.zoom button { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); cursor: pointer; }
+.hint { position: absolute; right: 16px; bottom: 12px; font-size: 11.5px; color: var(--mut); }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 4px 8px;
+  border-radius: 6px; white-space: nowrap; display: none; z-index: 2; }
+.panel { padding: 14px 14px 10px; }
+.qline { font-size: 13px; color: var(--mut); }
+.qtitle { font-size: 17px; font-weight: 600; margin: 1px 0 6px; }
+.score { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.score .big { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+.score .of { color: var(--soft); font-size: 13px; }
+.res { display: grid; grid-template-columns: 30px 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 4px;
+  border-top: 1px solid var(--line); cursor: pointer; border-radius: 6px; }
+.res:hover, .res.sel { background: var(--bg3); }
+.res .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.res .lb { font-size: 11.5px; color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res .mk { font-weight: 700; text-align: center; }
+.mk.ok { color: var(--ok); } .mk.bad { color: var(--bad); } .mk.unk { color: var(--unk); }
+.play { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+  cursor: pointer; font-size: 11px; display: grid; place-items: center; padding: 0; }
+.res.playing .play { background: var(--chipon); color: var(--chipontext); }
+.coll { font-size: 11px; display: inline-flex; align-items: center; gap: 4px; color: var(--mut); }
+.coll i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.similar { margin-top: 8px; width: 100%; font: inherit; font-size: 13px; padding: 7px; border-radius: 8px; border: 1px dashed var(--line);
+  background: none; color: var(--ink); cursor: pointer; }
+.similar:disabled { opacity: .4; cursor: default; }
+.note { font-size: 12.5px; color: var(--soft); margin-top: 8px; }
+.kpick { font-size: 12px; color: var(--mut); display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.empty { color: var(--soft); font-size: 13.5px; padding: 6px 0 4px; }
+.empty ul { padding-left: 18px; margin: 6px 0; }
+.err { color: var(--bad); font-size: 12.5px; }
+.below { margin-top: 30px; }
+.below h2 { font-size: 17px; margin: 26px 0 8px; }
+.below p, .below li { color: var(--soft); max-width: 920px; }
+.below b { color: var(--ink); }
+.hlk { background: var(--mark); color: var(--ink); padding: 0 3px; border-radius: 3px; }
+.cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .cols3 { grid-template-columns: 1fr; } }
+.cols3 .card { padding: 12px 14px; }
+.cols3 h3 { font-size: 14px; margin: 0 0 4px; display: flex; gap: 6px; align-items: center; }
+.cols3 h3 i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.cols3 p { margin: 0; font-size: 13px; }
+table.tbl { border-collapse: collapse; font-size: 13px; width: 100%; max-width: 920px; }
+.tbl th, .tbl td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+.tbl th { color: var(--mut); font-weight: 600; }
+.tbl td.n { font-variant-numeric: tabular-nums; }
+.divider { margin: 36px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--mut); font-size: 13px; }
+a { color: var(--hl); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Search audio for the things nobody says</h1>
+      <p class="sub">A cough, a sigh, waves, an angry tone: none of it is in a transcript. <b>Here you search the sound itself</b>, with words or with an example clip. <a href="#how">How it works ↓</a></p>
+    </div>
+    <div class="toggles">
+      <span id="layers"></span>
+      <span>Model <span class="seg" id="models"><button data-m="clap">CLAP</button><button data-m="gemma">Gemma</button></span></span>
+    </div>
+  </div>
+
+  <form class="searchrow" id="form">
+    <input id="q" placeholder="Type any sound or vibe… e.g. “a door slamming”, “someone nervous”, “crowd at a stadium”" autocomplete="off">
+    <button type="submit">Search</button>
+  </form>
+  <div class="chips" id="chips"></div>
+
+  <div class="main">
+    <div class="card mapcard">
+      <canvas id="map" aria-label="Map of every clip; clips that sound alike sit close together. Matches are circled."></canvas>
+      <div class="legend" id="legend"></div>
+      <div class="zoom"><button id="zoomm">Zoom to matches</button><button id="zoomr">Reset view</button></div>
+      <div class="hint">Scroll to zoom · drag to pan · click a dot to play</div>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="card panel" id="panel"></div>
+  </div>
+
+  <div class="below" id="how">
+    <p class="divider">That is the demo. Everything below is the how.</p>
+
+    <h2>What's in the collection</h2>
+    <div class="cols3" id="colcards"></div>
+
+    <h2>How it works</h2>
+    <ul>
+      <li>Every clip is turned into a list of numbers (an <b>embedding</b>) by an audio–text model. Clips that sound alike get similar numbers, and so does <b>a sentence describing the sound</b>.</li>
+      <li>A search embeds your words with the same model and returns the clips whose numbers are closest. <span class="hlk">No transcript, tags or titles are used.</span></li>
+      <li>The map squeezes the embeddings to 2-D (UMAP), so neighbours on the map sound alike. Circles are the top matches; click any dot to hear it.</li>
+      <li><b>“Sounds like this”</b> skips words entirely: it finds the clips whose embedding is closest to the one you picked.</li>
+      <li>✓ / ✗ come from each dataset's human labels, which the search never sees. Podcast clips have no labels, so they show <b>?</b>: listen to judge.</li>
+    </ul>
+
+    <h2>Two models, two strengths</h2>
+    <ul>
+      <li><b>CLAP</b> (LAION, 2023) was trained on sounds paired with captions, so it can <span class="hlk">name sound events</span>: cough, sneeze, applause, rain.</li>
+      <li><b>Gemma</b> (EmbeddingGemma 2, Google) was not trained on captioned sound effects. It is weak at naming events but <span class="hlk">stronger on how people talk</span>: a news reader, friends joking.</li>
+      <li>From the sister study (audio-vocab): on ESC-50, words find the right sound 90% of the time with CLAP and 25% with Gemma.</li>
+    </ul>
+
+    <h2>What the numbers don't show</h2>
+    <ul id="caveats">
+      <li><b>Emotion is heard but can't be named.</b> Typing “an angry voice” finds almost no angry clips (in CREMA-D the sentence is identical across moods). But <span class="hlk">“Sounds like this” works above chance</span>: across all angry clips, about 5 of the 10 nearest are also angry (chance 1.7); neutral 3.9, sad 3.2, the rest 2.2–2.6. The model hears the mood more than words can reach it, but only coarsely. The “By example” chips use the most typical clip, so they look better than average.</li>
+      <li><b>Some words miss.</b> “Clearing throat” and “shouting” reach only 4 of 10: their neighbours are coughs and screams. Here one plain word beat a richer description (0 → 4 of 10).</li>
+      <li><b>Labels are strict.</b> A ✗ can still sound right (a giggle under “laughter” counts; a laughing crowd in a “clapping” clip doesn't).</li>
+      <li><b>Podcasts are 20 s clips</b>, the others 2–10 s, so a short cough inside a podcast clip is diluted.</li>
+    </ul>
+
+    <h2>Run it</h2>
+    <ul>
+      <li><code>../audio-vocab/.venv/Scripts/python scripts/serve.py</code> → <code>http://127.0.0.1:8770/</code> (typed search and audio need the server; chips work offline).</li>
+      <li>Rebuild: <code>scripts/build.py</code>; leave a collection out with <code>--drop podcasts</code> (or emotions / sounds). The layer buttons at the top hide one without rebuilding.</li>
+      <li>Embeddings come from the sister repos (audio-vocab, podcast-vibe-search); nothing is re-trained.</li>
+    </ul>
+  </div>
+</div>
+
+<audio id="audio" preload="none"></audio>
+<script src="data.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const IT = DATA.items.map(([col, label, name, x, y, dur], i) => ({i, col, label, name, x, y, dur}));
+const COLS = {
+  sounds:   {name: "Sound effects", v: "--c1", blurb: "VocalSound, ESC-50, FSD50K: coughs, sneezes, laughter, waves, typing… human-labelled."},
+  emotions: {name: "Emotional speech", v: "--c2", blurb: "CREMA-D: actors say the same 12 sentences angry, disgusted, afraid, happy, sad or neutral."},
+  podcasts: {name: "Podcasts", v: "--c3", blurb: "117 episodes of 39 real shows, minutes 2–10, cut into 20 s clips. No labels."},
+};
+const present = DATA.collections.filter(c => IT.some(t => t.col === c));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const S = {model: "clap", on: new Set(present), k: 10, query: null, sel: null, playing: null, hover: null};
+
+// ---------- labels for ✓ / ✗ ----------
+const pretty = l => ({ANG: "angry", DIS: "disgusted", FEA: "afraid", HAP: "happy", SAD: "sad", NEU: "neutral",
+  throatclearing: "throat clearing"}[l] || String(l).replace(/_/g, " "));
+function verdict(t, q) {
+  if (t.col === "podcasts") return "unk";
+  if (q.labels) return q.labels.has(t.label) ? "ok" : "bad";
+  return null;
+}
+
+// ---------- example chips: for each emotion, the CREMA-D clip whose neighbours agree with it most ----------
+const EXAMPLES = ["ANG", "SAD", "HAP", "FEA"].map(lab => {
+  let best = null, bs = -1;
+  for (const t of IT) if (t.col === "emotions" && t.label === lab) {
+    const s = DATA.nn.clap[t.i].slice(0, 10).filter(j => IT[j].label === lab).length;
+    if (s > bs) { bs = s; best = t.i; }
+  }
+  return best === null ? null : {title: `Like this ${pretty(lab)} clip`, idx: best, label: lab};
+}).filter(Boolean);
+// The honest number next to the hand-picked example: across ALL clips of this emotion, how many of the 10 nearest
+// share it (chance = 1 in 6).
+function typical(lab, model) {
+  const ids = IT.filter(t => t.col === "emotions" && t.label === lab);
+  const avg = ids.reduce((a, t) => a + DATA.nn[model][t.i].slice(0, 10).filter(j => IT[j].label === lab).length, 0) / ids.length;
+  return avg.toFixed(1);
+}
+
+// ---------- controls ----------
+function renderLayers() {
+  $("layers").innerHTML = present.map(c => `<span class="layer ${S.on.has(c) ? "" : "off"}" data-col="${c}">
+    <i style="background:var(${COLS[c].v})"></i>${COLS[c].name} <span style="color:var(--mut)">${IT.filter(t => t.col === c).length.toLocaleString()}</span></span>`).join(" ");
+}
+$("layers").onclick = e => {
+  const c = e.target.closest(".layer")?.dataset.col; if (!c) return;
+  if (S.on.has(c)) { if (S.on.size > 1) S.on.delete(c); } else S.on.add(c);
+  renderLayers(); rerun();
+};
+$("models").onclick = e => { const m = e.target.dataset.m; if (!m) return; S.model = m; renderModels(); rerun(); };
+function renderModels() { document.querySelectorAll("#models button").forEach(b => b.classList.toggle("on", b.dataset.m === S.model)); }
+
+const groups = {};
+DATA.chips.forEach((c, n) => (groups[c.group] ||= []).push(n));
+function renderChips() {
+  const active = S.query;
+  let h = Object.entries(groups).map(([g, ns]) => `<span class="cg"><span class="gl">${g}</span>${ns.map(n =>
+    `<button class="chip ${active?.chip === n ? "on" : ""}" data-chip="${n}">${esc(DATA.chips[n].title)}</button>`).join("")}</span>`).join("");
+  if (EXAMPLES.length && present.includes("emotions"))
+    h += `<span class="cg"><span class="gl">By example</span>${EXAMPLES.map((x, n) =>
+      `<button class="chip ex ${active?.ex === n ? "on" : ""}" data-ex="${n}" title="No words: finds clips that sound like this one">${esc(x.title)}</button>`).join("")}</span>`;
+  $("chips").innerHTML = h;
+}
+$("chips").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.chip !== undefined) runChip(+b.dataset.chip, true);
+  else runSimilar(EXAMPLES[+b.dataset.ex].idx, +b.dataset.ex);
+};
+$("form").onsubmit = e => { e.preventDefault(); const q = $("q").value.trim(); if (q) runText(q); };
+
+// ---------- queries ----------
+const visible = t => S.on.has(t.col);
+function topFrom(ranked) { return ranked.filter(i => visible(IT[i])).slice(0, S.k); }
+
+function runChip(n, fromClick) {
+  const c = DATA.chips[n];
+  if (fromClick) S.model = c.model, renderModels();
+  S.query = {kind: "chip", chip: n, title: c.title, labels: c.labels.length ? new Set(c.labels) : null,
+             ranked: c[S.model].map(x => x[0]), sub: `ready-made search · ${S.model.toUpperCase()}`};
+  show();
+}
+let textSeq = 0;
+async function runText(q) {
+  const my = ++textSeq, model = S.model;
+  S.query = {kind: "text", text: q, title: `“${q}”`, labels: null, ranked: [], sub: `your words · ${model.toUpperCase()}`, loading: true};
+  show();
+  try {
+    const r = await fetch(`/search?model=${model}&q=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error(r.status);
+    const s = (await r.json()).scores;
+    if (my !== textSeq) return;
+    const ranked = s.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 400).map(x => x[1]);
+    // if the words match a chip's labels, still show ✓/✗
+    const ch = DATA.chips.find(c => c.title.toLowerCase() === q.toLowerCase());
+    Object.assign(S.query, {ranked, loading: false, labels: ch && ch.labels.length ? new Set(ch.labels) : null});
+  } catch (err) {
+    if (my !== textSeq) return;
+    Object.assign(S.query, {loading: false, error: true});
+  }
+  show();
+}
+function runSimilar(idx, ex) {
+  const t = IT[idx];
+  S.query = {kind: "similar", src: idx, ex, title: `Sounds like: ${t.name}`, labels: t.col === "podcasts" ? null : new Set([t.label]),
+             ranked: DATA.nn[S.model][idx], sub: `no words, nearest clips · ${S.model.toUpperCase()}`};
+  S.sel = idx;
+  show();
+}
+function rerun() {
+  const q = S.query; if (!q) return draw();
+  if (q.kind === "chip") runChip(q.chip, false);
+  else if (q.kind === "text") runText(q.text);
+  else runSimilar(q.src, q.ex);
+}
+
+// ---------- the panel ----------
+function show() { renderChips(); renderPanel(); draw(); }
+function collDot(t) { return `<span class="coll"><i style="background:var(${COLS[t.col].v})"></i>${COLS[t.col].name}</span>`; }
+function renderPanel() {
+  const q = S.query;
+  if (!q) {
+    $("panel").innerHTML = `<div class="qtitle">Pick a search above, or type your own</div>
+      <div class="empty">Each dot on the map is one clip; clips that sound alike sit together.
+      <ul><li><b>Click a chip</b> to circle its top matches and see how many are right.</li>
+      <li><b>Click any dot</b> to hear it, then “Sounds like this” to find its neighbours.</li>
+      <li><b>Type anything</b>: the words are matched to the sound, not to a transcript.</li></ul></div>
+      ${S.sel !== null ? selBox() : ""}`;
+    return;
+  }
+  const top = topFrom(q.ranked);
+  let head = `<div class="qline">${esc(q.sub)}</div><div class="qtitle">${esc(q.title)}</div>`;
+  if (q.loading) { $("panel").innerHTML = head + `<div class="empty">Embedding your words…</div>`; return; }
+  if (q.error) { $("panel").innerHTML = head + `<div class="err">Typed search needs the local server (scripts/serve.py). The ready-made chips work without it.</div>`; return; }
+  const v = top.map(i => verdict(IT[i], q)), lab = v.filter(x => x === "ok" || x === "bad");
+  const ok = v.filter(x => x === "ok").length;
+  let score = "";
+  if (lab.length) score = `<div class="score"><span class="big">${ok} of ${lab.length}</span><span class="of">labelled clips are ${q.kind === "similar" ? "the same kind (" + esc(pretty(IT[q.src].label)) + ")" : "right"}${v.includes("unk") ? ` · ${v.filter(x => x === "unk").length} podcast clips: listen` : ""}</span></div>`;
+  else if (top.length) score = `<div class="score"><span class="of">Your own words have no answer key: check each clip's label, or <b>click to listen</b>.</span></div>`;
+  if (q.kind === "similar" && IT[q.src].col === "emotions")
+    score += `<div class="note" style="margin:-4px 0 8px">${q.ex !== undefined ? "This clip was picked as the most typical one. " : ""}Across <b>all</b> ${esc(pretty(IT[q.src].label))} clips, on average <b>${typical(IT[q.src].label, S.model)} of 10</b> neighbours share the mood (chance: 1.7).</div>`;
+  const rows = top.map((i, r) => {
+    const t = IT[i], vv = v[r];
+    const mk = vv === "ok" ? "✓" : vv === "bad" ? "✗" : vv === "unk" ? "?" : "";
+    return `<div class="res ${S.playing === i ? "playing" : ""} ${S.sel === i ? "sel" : ""}" data-i="${i}">
+      <button class="play" data-play="${i}" aria-label="Play">${S.playing === i && !$("audio").paused ? "❚❚" : "▶"}</button>
+      <span class="mk ${vv || ""}">${mk}</span>
+      <span><div class="nm">${esc(t.name)}</div><div class="lb">${collDot(t)}${t.col !== "podcasts" ? " · label: " + esc(pretty(t.label)) : " · " + esc(t.label)}</div></span>
+      <span></span></div>`;
+  }).join("");
+  $("panel").innerHTML = head + score + (rows || `<div class="empty">No clips in the visible collections.</div>`) +
+    `<div class="kpick">Show top <span class="seg" id="kseg">${[10, 20, 50].map(k => `<button class="${S.k === k ? "on" : ""}" data-k="${k}">${k}</button>`).join("")}</span></div>` +
+    (S.sel !== null ? selBox() : "");
+}
+function selBox() {
+  const t = IT[S.sel];
+  return `<button class="similar" data-sim="${S.sel}">Sounds like this: <b>${esc(t.name)}</b> →</button>`;
+}
+$("panel").onclick = e => {
+  const k = e.target.closest("[data-k]"); if (k) { S.k = +k.dataset.k; return show(); }
+  const sim = e.target.closest("[data-sim]"); if (sim) return runSimilar(+sim.dataset.sim);
+  const row = e.target.closest("[data-i]"); if (row) { const i = +row.dataset.i; S.sel = i; play(i); }
+};
+
+// ---------- audio ----------
+const audio = $("audio");
+function play(i) {
+  if (S.playing === i && !audio.paused) { audio.pause(); return show(); }
+  S.playing = i; S.sel = i;
+  audio.src = `/audio/${i}`;
+  audio.play().catch(() => { S.playError = true; renderPanel(); });
+  show();
+}
+audio.onplay = audio.onpause = audio.onended = () => { renderPanel(); draw(); };
+audio.onerror = () => {
+  if (S.playing === null) return;
+  const d = document.createElement("div"); d.className = "err";
+  d.textContent = location.protocol === "file:" ? "Audio needs the local server (scripts/serve.py)." : "This clip's audio isn't available on this machine.";
+  $("panel").appendChild(d);
+};
+
+// ---------- the map ----------
+const cv = $("map"), ctx = cv.getContext("2d");
+let W, H, P = 18, scale = 1;
+function size() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+let V = {x0: 0, y0: 0, w: 1, h: 1};   // the visible part of the [0,1]² map (zoom and pan)
+const px = t => P + (t.x - V.x0) / V.w * (W - 2 * P), py = t => P + (V.y0 + V.h - t.y) / V.h * (H - 2 * P);
+const toData = (mx, my) => [V.x0 + (mx - P) / (W - 2 * P) * V.w, V.y0 + V.h - (my - P) / (H - 2 * P) * V.h];
+function zoomTo(ids) {
+  if (!ids.length) return;
+  const xs = ids.map(i => IT[i].x), ys = ids.map(i => IT[i].y);
+  const s = Math.min(1, Math.max(0.08, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 1.6);
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+  V = {x0: cx - s / 2, y0: cy - s / 2, w: s, h: s}; draw();
+}
+function resetView() { V = {x0: 0, y0: 0, w: 1, h: 1}; draw(); }
+function draw() {
+  if (!W) size();
+  ctx.clearRect(0, 0, W, H);
+  const q = S.query, top = q && !q.loading && !q.error ? topFrom(q.ranked) : [];
+  const dim = top.length ? 0.22 : 0.6;
+  const col = {}; for (const c of present) col[c] = css(COLS[c].v);
+  ctx.globalAlpha = dim;
+  for (const t of IT) {
+    if (!visible(t)) continue;
+    ctx.fillStyle = col[t.col];
+    ctx.beginPath(); ctx.arc(px(t), py(t), 2.2, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  const ink = css("--ink"), surf = css("--surface"), okc = css("--ok"), badc = css("--bad"), unk = css("--unk");
+  // matches: filled dot + ring coloured by verdict (icon in the panel carries the meaning too)
+  top.slice().reverse().forEach(i => {
+    const t = IT[i], v = verdict(t, q), x = px(t), y = py(t);
+    ctx.fillStyle = col[t.col]; ctx.strokeStyle = surf; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = v === "ok" ? okc : v === "bad" ? badc : v === "unk" ? unk : ink; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
+  });
+  if (q && q.kind === "similar") ring(IT[q.src], ink, 13, 3);
+  if (S.sel !== null && (!q || q.src !== S.sel)) ring(IT[S.sel], ink, 7, 2);
+  if (S.playing !== null && !audio.paused) ring(IT[S.playing], css("--hl"), 15, 2.5);
+  if (S.hover !== null) ring(IT[S.hover], ink, 6, 1.5);
+}
+function ring(t, c, r, w) {
+  ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(px(t), py(t), r, 0, 7); ctx.stroke();
+}
+function nearest(e) {
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 100;
+  for (const t of IT) { if (!visible(t)) continue; const d = (px(t) - mx) ** 2 + (py(t) - my) ** 2; if (d < bd) { bd = d; best = t.i; } }
+  return [best, mx, my];
+}
+cv.onwheel = e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect(), [dx, dy] = toData(e.clientX - r.left, e.clientY - r.top);
+  const f = e.deltaY < 0 ? 0.8 : 1.25;
+  if (V.w * f >= 1) return resetView();
+  V = {x0: dx - (dx - V.x0) * f, y0: dy - (dy - V.y0) * f, w: V.w * f, h: V.h * f}; draw();
+};
+let drag = null;
+cv.onmousedown = e => { drag = {x: e.clientX, y: e.clientY, v: {...V}, moved: false}; };
+window.addEventListener("mouseup", () => setTimeout(() => drag = null, 0));
+cv.onmousemove = e => {
+  if (drag && e.buttons) {
+    const ddx = e.clientX - drag.x, ddy = e.clientY - drag.y;
+    if (Math.abs(ddx) + Math.abs(ddy) > 4) drag.moved = true;
+    if (drag.moved) {
+      V = {...drag.v, x0: drag.v.x0 - ddx / (W - 2 * P) * V.w, y0: drag.v.y0 + ddy / (H - 2 * P) * V.h};
+      $("tip").style.display = "none"; return draw();
+    }
+  }
+  const [i, mx, my] = nearest(e), tip = $("tip");
+  if (i !== S.hover) { S.hover = i; draw(); }
+  if (i === null) { tip.style.display = "none"; return; }
+  const t = IT[i];
+  tip.innerHTML = `${esc(t.name)}${t.col !== "podcasts" ? ` <span style="opacity:.7">· ${esc(pretty(t.label))}</span>` : ""}`;
+  tip.style.display = "block";
+  const tw = tip.offsetWidth;
+  tip.style.left = Math.min(mx + 22, W - tw) + "px"; tip.style.top = (my + 4) + "px";
+};
+cv.onmouseleave = () => { S.hover = null; $("tip").style.display = "none"; draw(); };
+cv.onclick = e => { if (drag?.moved) return; const [i] = nearest(e); if (i !== null) play(i); };
+$("zoomm").onclick = () => { const q = S.query; zoomTo(q && q.ranked ? topFrom(q.ranked).concat(q.kind === "similar" ? [q.src] : []) : []); };
+$("zoomr").onclick = resetView;
+window.addEventListener("resize", () => { size(); draw(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+
+function renderLegend() {
+  $("legend").innerHTML = present.map(c => `<span><i style="background:var(${COLS[c].v})"></i>${COLS[c].name}</span>`).join("") +
+    `<span><i class="ring" style="border-color:var(--ok)"></i>match, label agrees ✓</span>
+     <span><i class="ring" style="border-color:var(--bad)"></i>match, label disagrees ✗</span>
+     <span><i class="ring" style="border-color:var(--unk)"></i>match, no label ?</span>`;
+}
+$("colcards").innerHTML = present.map(c => `<div class="card"><h3><i style="background:var(${COLS[c].v})"></i>${COLS[c].name}
+  <span style="color:var(--mut);font-weight:400">${IT.filter(t => t.col === c).length.toLocaleString()} clips</span></h3><p>${COLS[c].blurb}</p></div>`).join("");
+
+renderLayers(); renderModels(); renderLegend(); size(); show();
+// deep links: #chip=cough, #ex=0, #q=a door slamming
+const H0 = new URLSearchParams(location.hash.slice(1));
+if (H0.get("chip")) { const n = DATA.chips.findIndex(c => c.key === H0.get("chip")); if (n >= 0) runChip(n, true); }
+else if (H0.get("ex")) runSimilar(EXAMPLES[+H0.get("ex")].idx, +H0.get("ex"));
+else if (H0.get("q")) { $("q").value = H0.get("q"); runText(H0.get("q")); }
+if (H0.has("zoom")) $("zoomm").click();
+</script>
+</body>
+</html>
