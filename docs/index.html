@@ -6,478 +6,461 @@
 <title>Sound Search</title>
 <style>
 :root {
-  color-scheme: light;
-  --bg: #f6f5f2; --surface: #fcfcfb; --bg3: #ebe9e4; --line: #dedcd6;
-  --ink: #0b0b0b; --soft: #52514e; --mut: #85837d;
-  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a;
-  --hl: #2a78d6; --ok: #1d7f3e; --bad: #c43c3c; --unk: #52514e;
-  --chip: #ffffff; --chipon: #0b0b0b; --chipontext: #ffffff;
-  --mark: #fff1b8;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #121211; --surface: #1a1a19; --bg3: #262624; --line: #33332f;
-    --ink: #f0efec; --soft: #c3c2b7; --mut: #8d8c84;
-    --c1: #3987e5; --c2: #d95926; --c3: #199e70;
-    --hl: #3987e5; --ok: #4cc06e; --bad: #ef6b6b; --unk: #c3c2b7;
-    --chip: #1f1f1d; --chipon: #f0efec; --chipontext: #121211;
-    --mark: #4a3f12;
-  }
-}
-:root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121211; --surface: #1a1a19; --bg3: #262624; --line: #33332f;
-  --ink: #f0efec; --soft: #c3c2b7; --mut: #8d8c84;
-  --c1: #3987e5; --c2: #d95926; --c3: #199e70;
-  --hl: #3987e5; --ok: #4cc06e; --bad: #ef6b6b; --unk: #c3c2b7;
-  --chip: #1f1f1d; --chipon: #f0efec; --chipontext: #121211;
-  --mark: #4a3f12;
+  --bg: #07080f; --bg2: #0b0d16; --card: #0e1120; --card2: #13172a;
+  --glass: rgba(15, 18, 34, .74); --line: rgba(255, 255, 255, .08); --line2: rgba(255, 255, 255, .16);
+  --ink: #f4f6ff; --soft: #bcc3de; --mut: #8a91b0;
+  /* data colours: validated (dark band, all-pairs CVD) */
+  --sounds: #2a92e0; --emotions: #e14d8f; --podcasts: #c2830f;
+  --clap: #8f73ec; --gemma: #5fa80f;
+  --ok: #12a28d; --bad: #ea6236;
+  /* decoration only, never data */
+  --grad: linear-gradient(100deg, #38bdf8 0%, #a78bfa 50%, #f472b6 100%);
+  --grad2: linear-gradient(100deg, #22d3ee, #818cf8);
+  --hfont: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --stage: max(500px, calc(100vh - 252px));
 }
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--ink); font: 14.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-.wrap { max-width: 1440px; margin: 0 auto; padding: 14px 20px 40px; }
-h1 { font-size: 21px; margin: 0; letter-spacing: -0.01em; }
-.sub { color: var(--soft); margin: 2px 0 0; font-size: 14px; }
-.sub b { color: var(--ink); background: var(--mark); padding: 0 3px; border-radius: 3px; }
-.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-.toggles { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--soft); }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { border: 0; background: var(--chip); color: var(--soft); padding: 5px 10px; font: inherit; cursor: pointer; }
-.seg button.on { background: var(--chipon); color: var(--chipontext); }
-.layer { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; padding: 4px 8px;
-  border: 1px solid var(--line); border-radius: 8px; background: var(--chip); }
-.layer.off { opacity: .45; }
-.layer i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.searchrow { display: flex; gap: 8px; margin: 12px 0 8px; }
-.searchrow input { flex: 1; font: inherit; font-size: 15px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
-  background: var(--surface); color: var(--ink); }
-.searchrow button { font: inherit; padding: 0 16px; border-radius: 10px; border: 0; background: var(--chipon); color: var(--chipontext); cursor: pointer; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-bottom: 10px; }
-.cg { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.cg .gl { font-size: 11.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
-.chip { border: 1px solid var(--line); background: var(--chip); color: var(--ink); padding: 3px 10px; border-radius: 999px;
-  font: inherit; font-size: 13px; cursor: pointer; }
-.chip.on { background: var(--chipon); color: var(--chipontext); border-color: var(--chipon); }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 14.5px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  background-image:
+    radial-gradient(900px 520px at 6% -12%, rgba(42, 146, 224, .26), transparent 62%),
+    radial-gradient(820px 500px at 96% -8%, rgba(225, 77, 143, .22), transparent 62%),
+    radial-gradient(1000px 700px at 50% 115%, rgba(143, 115, 236, .14), transparent 60%);
+  background-attachment: fixed;
+  padding-bottom: 110px;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+a { color: #93c5fd; }
+.wrap { max-width: 1520px; margin: 0 auto; padding: 0 22px; }
+
+/* ---------- top bar ---------- */
+.topbar { display: flex; align-items: center; gap: 18px; padding: 12px 0 6px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--hfont); font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+.eq { display: flex; align-items: flex-end; gap: 2.5px; height: 22px; width: 26px; }
+.eq i { width: 4px; border-radius: 2px; background: var(--grad); height: 40%; animation: eq 1.6s ease-in-out infinite; transform-origin: bottom; }
+.eq i:nth-child(1) { background: #38bdf8; animation-delay: -.2s; } .eq i:nth-child(2) { background: #818cf8; animation-delay: -.9s; }
+.eq i:nth-child(3) { background: #a78bfa; animation-delay: -.5s; } .eq i:nth-child(4) { background: #f472b6; animation-delay: -1.2s; }
+.eq i:nth-child(5) { background: #fb923c; animation-delay: -.7s; }
+body.playing .eq i { animation-duration: .55s; }
+@keyframes eq { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat { font-size: 12.5px; color: var(--soft); padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.03); }
+.stat b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat.zero b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.layers { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.layers .lab { font-size: 11.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .08em; margin-right: 2px; }
+.layer { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 9px; border-radius: 999px; cursor: pointer; user-select: none;
+  border: 1px solid var(--line2); background: rgba(255,255,255,.04); font-size: 13px; transition: all .2s; }
+.layer i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c), 0 0 2px var(--c); transition: all .2s; }
+.layer .n { color: var(--mut); font-variant-numeric: tabular-nums; font-size: 12px; }
+.layer.off { opacity: .42; border-style: dashed; }
+.layer.off i { box-shadow: none; background: transparent; border: 1.5px solid var(--c); }
+.layer:hover { border-color: var(--c); }
+
+/* ---------- hero + search ---------- */
+.hero { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr); gap: 26px; align-items: center; padding: 8px 0 10px; }
+@media (max-width: 1100px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+h1 { font-family: var(--hfont); font-size: 30px; line-height: 1.12; margin: 0; letter-spacing: -.02em; font-weight: 700; }
+h1 .g { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tag { margin: 5px 0 0; color: var(--soft); font-size: 14px; }
+.tag a { color: var(--soft); text-decoration-color: rgba(255,255,255,.3); text-underline-offset: 3px; }
+.sbox { position: relative; border-radius: 16px; padding: 1.5px; background: linear-gradient(100deg, rgba(56,189,248,.5), rgba(167,139,250,.5), rgba(244,114,182,.5));
+  box-shadow: 0 10px 40px rgba(0,0,0,.45), 0 0 0 0 rgba(167,139,250,0); transition: box-shadow .3s; }
+.sbox:focus-within { background: var(--grad); box-shadow: 0 10px 50px rgba(0,0,0,.5), 0 0 34px rgba(167,139,250,.35); }
+.sin { display: flex; align-items: center; gap: 8px; background: #0b0e1b; border-radius: 14.5px; padding: 6px 6px 6px 14px; }
+.sin svg { flex: none; opacity: .7; }
+.sin input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font: inherit; font-size: 16px; padding: 8px 4px; }
+.sin input::placeholder { color: #6f779a; }
+.kbd { font-size: 11px; color: var(--mut); border: 1px solid var(--line2); border-radius: 5px; padding: 0 5px; line-height: 17px; }
+.mseg { display: inline-flex; background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 2px; }
+.mseg button { border: 0; background: none; padding: 5px 10px; border-radius: 8px; cursor: pointer; color: var(--soft); font-size: 13px; line-height: 1.15; text-align: left; }
+.mseg button small { display: block; font-size: 10.5px; color: var(--mut); }
+.mseg button.on { background: color-mix(in srgb, var(--c) 28%, #0b0e1b); color: var(--ink); box-shadow: inset 0 0 0 1px var(--c), 0 0 16px color-mix(in srgb, var(--c) 45%, transparent); }
+.mseg button.on small { color: var(--soft); }
+.go { border: 0; border-radius: 11px; padding: 0 18px; height: 42px; cursor: pointer; font-weight: 700; color: #07080f; background: var(--grad);
+  box-shadow: 0 0 22px rgba(167,139,250,.4); transition: transform .15s, box-shadow .2s; }
+.go:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(167,139,250,.6); }
+
+/* ---------- chips ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 7px 16px; align-items: center; padding: 4px 0 12px; }
+.cg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.gl { font-size: 10.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; margin-right: 3px; }
+.chip { border: 1px solid var(--line2); background: rgba(255,255,255,.035); padding: 3px 10px 3px 7px; border-radius: 999px; cursor: pointer;
+  font-size: 13px; display: inline-flex; gap: 6px; align-items: center; transition: transform .15s, background .2s, border-color .2s, box-shadow .2s; white-space: nowrap; }
+.chip .e { font-size: 15px; line-height: 1; }
+.chip:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.07); }
+.chip.on { background: var(--grad); color: #07080f; border-color: transparent; font-weight: 600; box-shadow: 0 0 22px rgba(167,139,250,.5); }
 .chip.ex { border-style: dashed; }
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
-@media (max-width: 960px) { .main { grid-template-columns: 1fr; } }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-.mapcard { position: relative; padding: 8px; }
-canvas { display: block; width: 100%; height: min(66vh, 720px); min-height: 360px; cursor: crosshair; }
-.legend { position: absolute; left: 16px; bottom: 12px; font-size: 12px; color: var(--soft); background: var(--surface);
-  border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; display: grid; gap: 2px; }
-.legend span { display: flex; align-items: center; gap: 6px; }
-.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.legend .ring { width: 11px; height: 11px; border: 2px solid; background: none; }
-.zoom { position: absolute; right: 16px; top: 14px; display: flex; gap: 6px; }
-.zoom button { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line);
-  background: var(--surface); color: var(--ink); cursor: pointer; }
-.hint { position: absolute; right: 16px; bottom: 12px; font-size: 11.5px; color: var(--mut); }
-.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 4px 8px;
-  border-radius: 6px; white-space: nowrap; display: none; z-index: 2; }
-.panel { padding: 14px 14px 10px; }
-.qline { font-size: 13px; color: var(--mut); }
-.qtitle { font-size: 17px; font-weight: 600; margin: 1px 0 6px; }
-.score { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.score .big { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
-.score .of { color: var(--soft); font-size: 13px; }
-.res { display: grid; grid-template-columns: 30px 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 4px;
-  border-top: 1px solid var(--line); cursor: pointer; border-radius: 6px; }
-.res:hover, .res.sel { background: var(--bg3); }
-.res .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
-.res .lb { font-size: 11.5px; color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.res .mk { font-weight: 700; text-align: center; }
-.mk.ok { color: var(--ok); } .mk.bad { color: var(--bad); } .mk.unk { color: var(--unk); }
-.play { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
-  cursor: pointer; font-size: 11px; display: grid; place-items: center; padding: 0; }
-.res.playing .play { background: var(--chipon); color: var(--chipontext); }
-.coll { font-size: 11px; display: inline-flex; align-items: center; gap: 4px; color: var(--mut); }
-.coll i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-.similar { margin-top: 8px; width: 100%; font: inherit; font-size: 13px; padding: 7px; border-radius: 8px; border: 1px dashed var(--line);
-  background: none; color: var(--ink); cursor: pointer; }
-.similar:disabled { opacity: .4; cursor: default; }
-.note { font-size: 12.5px; color: var(--soft); margin-top: 8px; }
-.kpick { font-size: 12px; color: var(--mut); display: flex; gap: 6px; align-items: center; margin-top: 6px; }
-.empty { color: var(--soft); font-size: 13.5px; padding: 6px 0 4px; }
-.empty ul { padding-left: 18px; margin: 6px 0; }
-.err { color: var(--bad); font-size: 12.5px; }
-.below { margin-top: 30px; }
-.below h2 { font-size: 17px; margin: 26px 0 8px; }
-.below p, .below li { color: var(--soft); max-width: 920px; }
-.below b { color: var(--ink); }
-.hlk { background: var(--mark); color: var(--ink); padding: 0 3px; border-radius: 3px; }
-.cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 860px) { .cols3 { grid-template-columns: 1fr; } }
-.cols3 .card { padding: 12px 14px; }
-.cols3 h3 { font-size: 14px; margin: 0 0 4px; display: flex; gap: 6px; align-items: center; }
-.cols3 h3 i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.cols3 p { margin: 0; font-size: 13px; }
-table.tbl { border-collapse: collapse; font-size: 13px; width: 100%; max-width: 920px; }
-.tbl th, .tbl td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
-.tbl th { color: var(--mut); font-weight: 600; }
-.tbl td.n { font-variant-numeric: tabular-nums; }
-.divider { margin: 36px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--mut); font-size: 13px; }
-a { color: var(--hl); }
+.chip.ex.on { border-style: solid; }
+.or { font-size: 11.5px; color: var(--mut); font-style: italic; margin: 0 2px 0 6px; }
+
+/* ---------- stage ---------- */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 16px; height: var(--stage); }
+@media (max-width: 1000px) { .stage { grid-template-columns: minmax(0, 1fr); height: auto; } }
+.mapcard { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--line);
+  background: radial-gradient(ellipse 70% 60% at 50% 45%, #10152b 0%, #090b16 62%, #06070d 100%);
+  box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 120px rgba(0,0,0,.6); min-height: 420px; }
+.mapcard::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.2px); background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%); }
+@media (max-width: 1000px) { .mapcard { height: 64vh; } }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#map.grab { cursor: grabbing; }
+.sweep { position: absolute; inset: -50%; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(167,139,250,.0) 300deg, rgba(167,139,250,.28) 352deg, rgba(244,114,182,.5) 360deg);
+  animation: spin 1.4s linear infinite; mask-image: radial-gradient(circle, #000 20%, transparent 55%); }
+.sweep.on { opacity: 1; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mtools { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; }
+.mtools button { border: 1px solid var(--line2); background: rgba(10,12,24,.75); backdrop-filter: blur(8px); border-radius: 10px; padding: 5px 10px;
+  font-size: 12.5px; cursor: pointer; color: var(--soft); }
+.mtools button:hover { color: var(--ink); border-color: rgba(255,255,255,.35); }
+.mtools button.sq { width: 30px; padding: 5px 0; }
+.mlegend { position: absolute; left: 14px; bottom: 14px; display: grid; gap: 3px; font-size: 11.5px; color: var(--soft);
+  background: rgba(8,10,20,.78); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; }
+.mlegend span { display: flex; align-items: center; gap: 8px; }
+.mlegend i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.mlegend .ring { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--c); background: none; box-shadow: none; }
+.mlegend .ring.dash { border-style: dashed; }
+.mlegend hr { border: 0; border-top: 1px solid var(--line); margin: 2px 0; }
+.mhint { position: absolute; left: 14px; top: 16px; font-size: 11.5px; color: var(--mut); pointer-events: none;
+  background: rgba(8,10,20,.6); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+#mini { position: absolute; right: 14px; bottom: 14px; width: 150px; height: 104px; border-radius: 10px; border: 1px solid var(--line2);
+  background: rgba(8,10,20,.85); cursor: pointer; opacity: 0; transition: opacity .3s; pointer-events: none; }
+#mini.on { opacity: 1; pointer-events: auto; }
+.tip { position: absolute; pointer-events: none; z-index: 5; min-width: 160px; max-width: 280px; background: rgba(12,14,28,.94); backdrop-filter: blur(10px);
+  border: 1px solid var(--line2); border-radius: 12px; padding: 8px 11px; font-size: 12.5px; box-shadow: 0 12px 30px rgba(0,0,0,.5); display: none; }
+.tip .tn { font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.tip .tm { color: var(--soft); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.tip .tm i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); }
+.tip .th { color: var(--mut); font-size: 11.5px; margin-top: 4px; }
+
+/* ---------- panel ---------- */
+.panel { border-radius: 22px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(16px);
+  box-shadow: 0 30px 80px rgba(0,0,0,.45); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+@media (max-width: 1000px) { .panel { max-height: none; } }
+.phead { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+.qrow { display: flex; gap: 12px; align-items: center; }
+.qicon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 24px; flex: none;
+  background: linear-gradient(135deg, rgba(56,189,248,.25), rgba(244,114,182,.25)); border: 1px solid var(--line2); }
+.qkind { font-size: 11.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .08em; display: flex; align-items: center; gap: 6px; }
+.mp { font-size: 10.5px; letter-spacing: .04em; border-radius: 6px; padding: 1px 6px; color: var(--ink); background: color-mix(in srgb, var(--c) 30%, transparent); border: 1px solid var(--c); }
+.qtitle { font-family: var(--hfont); font-size: 19px; font-weight: 600; line-height: 1.2; margin-top: 2px; }
+.score { display: flex; gap: 14px; align-items: center; margin-top: 12px; }
+.donut { flex: none; }
+.donut text { font-family: var(--hfont); font-weight: 700; fill: var(--ink); }
+.sline { font-size: 13px; color: var(--soft); }
+.sline b { color: var(--ink); }
+.mix { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.mix span { font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--soft); }
+.mix span b { color: var(--ink); font-weight: 600; }
+.note { font-size: 12px; color: var(--soft); margin-top: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(225,77,143,.08); border: 1px solid rgba(225,77,143,.25); }
+.note b { color: var(--ink); }
+.rows { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; padding: 6px 8px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent; }
+.row { display: grid; grid-template-columns: 22px 34px minmax(0, 1fr) 28px 26px; gap: 9px; align-items: center; padding: 7px 8px; border-radius: 12px;
+  cursor: pointer; position: relative; transition: background .15s; animation: rin .35s both; }
+@keyframes rin { from { opacity: 0; transform: translateX(10px); } }
+.row:hover, .row.hov { background: rgba(255,255,255,.055); }
+.row.playing { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 22%, transparent), rgba(255,255,255,.03)); }
+.row.playing::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.rk { font-size: 11px; color: var(--mut); font-variant-numeric: tabular-nums; text-align: right; }
+.pb { width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; color: #fff; font-size: 11px;
+  background: color-mix(in srgb, var(--c) 35%, #0b0e1b); box-shadow: inset 0 0 0 1.5px var(--c); transition: all .15s; }
+.row:hover .pb, .row.playing .pb { background: var(--c); box-shadow: 0 0 16px var(--c); }
+.rn { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm { font-size: 11.5px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 5px; align-items: center; }
+.rm i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex: none; }
+.rbar { height: 3px; border-radius: 3px; background: rgba(255,255,255,.06); margin-top: 4px; overflow: hidden; }
+.rbar b { display: block; height: 100%; border-radius: 3px; background: var(--grad2); }
+.rprog { position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2px; border-radius: 2px; overflow: hidden; display: none; }
+.row.playing .rprog { display: block; }
+.rprog b { display: block; height: 100%; width: 0; background: var(--c); }
+.sb { width: 28px; height: 28px; border-radius: 9px; border: 1px solid var(--line2); background: rgba(255,255,255,.03); cursor: pointer; color: var(--soft);
+  font-size: 14px; opacity: 0; transition: opacity .15s; }
+.row:hover .sb, .row.playing .sb { opacity: 1; }
+.sb:hover { color: var(--ink); border-color: rgba(255,255,255,.4); }
+.vb { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+.vb.ok { background: color-mix(in srgb, var(--ok) 25%, transparent); color: #5eead4; box-shadow: inset 0 0 0 1.5px var(--ok); }
+.vb.bad { background: color-mix(in srgb, var(--bad) 22%, transparent); color: #fdba8c; box-shadow: inset 0 0 0 1.5px dashed var(--bad); border: 1.5px dashed var(--bad); }
+.vb.unk { color: var(--mut); border: 1.5px solid var(--line2); }
+.pfoot { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--mut); }
+.kseg { display: inline-flex; gap: 2px; background: rgba(255,255,255,.05); border-radius: 8px; padding: 2px; }
+.kseg button { border: 0; background: none; border-radius: 6px; padding: 2px 9px; cursor: pointer; color: var(--soft); font-size: 12px; }
+.kseg button.on { background: rgba(255,255,255,.14); color: var(--ink); }
+.empty { padding: 18px 16px; overflow-y: auto; }
+.empty h3 { font-family: var(--hfont); font-size: 20px; margin: 0 0 4px; }
+.empty p { color: var(--soft); margin: 0 0 14px; font-size: 13.5px; }
+.sugg { display: grid; gap: 10px; }
+.sg { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 16px; cursor: pointer; border: 1px solid var(--line2);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, transparent), rgba(255,255,255,.02)); transition: transform .15s, box-shadow .2s, border-color .2s; text-align: left; }
+.sg:hover { transform: translateY(-2px); border-color: var(--c); box-shadow: 0 10px 30px color-mix(in srgb, var(--c) 30%, transparent); }
+.sg .e { font-size: 28px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: rgba(0,0,0,.25); }
+.sg .t { font-weight: 600; font-size: 14.5px; }
+.sg .s { font-size: 12px; color: var(--soft); }
+.how3 { margin-top: 16px; display: grid; gap: 8px; font-size: 12.5px; color: var(--soft); }
+.how3 div { display: flex; gap: 10px; align-items: center; }
+.how3 span { width: 24px; height: 24px; flex: none; border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,.06); border: 1px solid var(--line); font-size: 12px; }
+.loading { padding: 18px 16px; color: var(--soft); }
+.shim { height: 46px; border-radius: 12px; margin: 8px 0; background: linear-gradient(90deg, rgba(255,255,255,.03), rgba(255,255,255,.08), rgba(255,255,255,.03));
+  background-size: 200% 100%; animation: shim 1.1s linear infinite; }
+@keyframes shim { to { background-position: -200% 0; } }
+.err { color: #fdba8c; font-size: 13px; padding: 12px 16px; }
+
+/* ---------- dock ---------- */
+.dock { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 150%); width: min(760px, calc(100vw - 24px)); z-index: 30;
+  display: grid; grid-template-columns: 48px 150px minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 10px 12px 13px;
+  border-radius: 20px; background: rgba(10,12,24,.86); backdrop-filter: blur(20px); border: 1px solid var(--line2);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px color-mix(in srgb, var(--c, #a78bfa) 30%, transparent); transition: transform .45s cubic-bezier(.2,.9,.25,1.15); }
+.dock.on { transform: translate(-50%, 0); }
+@media (max-width: 640px) { .dock { grid-template-columns: 44px minmax(0, 1fr) auto; } #spec, #dsim { display: none; } }
+.dplay { width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; font-size: 16px; color: #fff; background: var(--c, #a78bfa);
+  box-shadow: 0 0 24px var(--c, #a78bfa); }
+#spec { width: 150px; height: 40px; display: block; }
+.dname { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dmeta { font-size: 12px; color: var(--soft); display: flex; gap: 6px; align-items: center; white-space: nowrap; overflow: hidden; }
+.dmeta i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); flex: none; }
+.dbtn { border: 1px solid var(--line2); background: rgba(255,255,255,.05); border-radius: 11px; padding: 8px 12px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.dbtn:hover { border-color: rgba(255,255,255,.45); background: rgba(255,255,255,.09); }
+.dx { border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 16px; padding: 6px; }
+.dprog { position: absolute; left: 16px; right: 16px; bottom: 6px; height: 3px; border-radius: 3px; background: rgba(255,255,255,.07); overflow: hidden; }
+.dprog b { display: block; height: 100%; width: 0; background: var(--c, #a78bfa); box-shadow: 0 0 8px var(--c, #a78bfa); }
+.toast { position: fixed; top: 16px; left: 50%; transform: translate(-50%, -150%); z-index: 40; background: rgba(12,14,28,.95); border: 1px solid rgba(234,98,54,.6);
+  color: var(--ink); padding: 9px 16px; border-radius: 12px; font-size: 13px; transition: transform .35s; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.toast.on { transform: translate(-50%, 0); }
+
+/* ---------- below the fold ---------- */
+.fold { margin: 64px 0 0; display: flex; align-items: center; gap: 16px; color: var(--mut); font-size: 13px; }
+.fold::before, .fold::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(167,139,250,.45), transparent); }
+.fold b { color: var(--soft); font-weight: 500; }
+.sec { margin-top: 46px; }
+.kick { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sec h2 { font-family: var(--hfont); font-size: 26px; letter-spacing: -.015em; margin: 4px 0 4px; }
+.lead { color: var(--soft); margin: 0 0 16px; max-width: 760px; }
+.cardx { border-radius: 20px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(20,24,44,.7), rgba(12,14,26,.7)); padding: 18px; position: relative; }
+.chartgrid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 18px; }
+@media (max-width: 900px) { .chartgrid { grid-template-columns: minmax(0, 1fr); } }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart .rowhit { cursor: pointer; }
+.chart .rowhit:hover rect.bgr { fill: rgba(255,255,255,.04); }
+.ctip { position: absolute; pointer-events: none; background: rgba(12,14,28,.95); border: 1px solid var(--line2); border-radius: 10px; padding: 6px 10px;
+  font-size: 12.5px; display: none; white-space: nowrap; z-index: 3; box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+.side { display: grid; gap: 12px; align-content: start; }
+.clegend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--soft); }
+.clegend span { display: inline-flex; align-items: center; gap: 7px; }
+.clegend i { width: 11px; height: 11px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.clegend .dash { width: 18px; height: 0; border-top: 2px dashed var(--mut); border-radius: 0; box-shadow: none; background: none; }
+.tile { border-radius: 16px; padding: 14px; border: 1px solid var(--line2); background: linear-gradient(135deg, color-mix(in srgb, var(--c) 20%, transparent), rgba(255,255,255,.02)); }
+.tile .k { font-size: 12px; color: var(--soft); }
+.tile .v { font-family: var(--hfont); font-size: 34px; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+.tile .v small { font-size: 16px; color: var(--soft); font-weight: 500; }
+.tile .s { font-size: 12px; color: var(--mut); }
+ul.pts { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 9px; max-width: 980px; }
+ul.pts li { padding-left: 22px; position: relative; color: var(--soft); }
+ul.pts li::before { content: ""; position: absolute; left: 4px; top: .62em; width: 8px; height: 8px; border-radius: 50%; background: var(--grad); box-shadow: 0 0 8px rgba(167,139,250,.6); }
+mark.hl { background: linear-gradient(100deg, rgba(56,189,248,.22), rgba(244,114,182,.22)); color: var(--ink); padding: 0 4px; border-radius: 5px; font-weight: 600; }
+ul.pts b { color: var(--ink); }
+.cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .cols3 { grid-template-columns: minmax(0, 1fr); } }
+.ccard { border-radius: 20px; padding: 16px; border: 1px solid var(--line); position: relative; overflow: hidden;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 14%, #0c0f1d), #0b0d18 70%); }
+.ccard::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--c); box-shadow: 0 0 18px var(--c); }
+.ccard h3 { margin: 2px 0 0; font-family: var(--hfont); font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.ccard h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.ccard .big { font-family: var(--hfont); font-size: 38px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; margin-top: 6px; }
+.ccard .src { font-size: 12.5px; color: var(--soft); margin-bottom: 10px; }
+.bars { display: grid; gap: 5px; }
+.bar { display: grid; grid-template-columns: 110px minmax(0, 1fr) 36px; gap: 8px; align-items: center; font-size: 12px; color: var(--soft); }
+.bar .tr { height: 8px; border-radius: 4px; background: rgba(255,255,255,.05); overflow: hidden; }
+.bar .tr b { display: block; height: 100%; border-radius: 4px; background: var(--c); }
+.bar .nn { text-align: right; color: var(--mut); font-variant-numeric: tabular-nums; }
+.bar .lb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.pills span b { color: var(--ink); font-weight: 600; margin-left: 2px; }
+.cmap { display: block; width: 100%; height: 130px; border-radius: 12px; background: rgba(0,0,0,.28); border: 1px solid var(--line); margin-bottom: 10px; }
+.pills span { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--soft); background: rgba(255,255,255,.03); }
+.rand { margin-top: 12px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); border-radius: 10px; padding: 6px 12px; cursor: pointer; font-size: 12.5px; }
+.rand:hover { background: color-mix(in srgb, var(--c) 32%, transparent); }
+.flow { display: grid; gap: 14px; }
+.lane { display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr 34px 1fr; align-items: center; }
+@media (max-width: 900px) { .lane { grid-template-columns: minmax(0, 1fr); gap: 6px; } .arrow { transform: rotate(90deg); justify-self: center; } }
+.node { border-radius: 14px; padding: 11px 13px; border: 1px solid var(--line2); background: rgba(255,255,255,.035); display: flex; gap: 10px; align-items: center; min-height: 58px; }
+.node .e { font-size: 22px; }
+.node .t { font-weight: 600; font-size: 13.5px; }
+.node .s { font-size: 11.5px; color: var(--mut); }
+.node.model { background: linear-gradient(135deg, rgba(143,115,236,.22), rgba(95,168,15,.16)); border-color: rgba(167,139,250,.45); }
+.node.vec .spark { display: flex; gap: 2px; align-items: center; height: 26px; }
+.node.vec .spark i { width: 4px; border-radius: 2px; background: var(--grad2); }
+.arrow { text-align: center; color: var(--mut); font-size: 18px; animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateX(3px); color: #c4b5fd; } }
+.code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; color: var(--soft); background: rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; overflow-x: auto; white-space: pre; }
+footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: center; }
+#layers { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cg { min-width: 0; max-width: 100%; }
+@media (max-width: 640px) {
+  .wrap { padding: 0 16px; }
+  body { overflow-x: hidden; }
+  .layers { margin-left: 0; }
+  .layers .lab, .kbd, .mhint, .mtools .sq, .mseg button small { display: none; }
+  .sin { flex-wrap: wrap; padding: 6px; }
+  .sin input { flex-basis: calc(100% - 30px); }
+  .mseg { flex: 1; } .mseg button { flex: 1; text-align: center; }
+  .go { flex: none; }
+  h1 { font-size: 25px; }
+  .mapcard { height: 70vh; }
+  .mlegend { display: none; }
+  #mini { width: 110px; height: 76px; }
+  .lane .arrow { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top">
-    <div>
-      <h1>Search audio for the things nobody says</h1>
-      <p class="sub">A cough, a sigh, waves, an angry tone: none of it is in a transcript. <b>Here you search the sound itself</b>, with words or with an example clip. <a href="#how">How it works ↓</a></p>
+  <div class="topbar">
+    <div class="brand"><span class="eq"><i></i><i></i><i></i><i></i><i></i></span>Sound Search</div>
+    <div class="stats">
+      <span class="stat"><b id="st-clips">0</b> clips</span>
+      <span class="stat"><b id="st-kinds">0</b> kinds of sound</span>
+      <span class="stat zero"><b>0</b> transcripts used</span>
     </div>
-    <div class="toggles">
-      <span id="layers"></span>
-      <span>Model <span class="seg" id="models"><button data-m="clap">CLAP</button><button data-m="gemma">Gemma</button></span></span>
-    </div>
+    <div class="layers"><span class="lab">Show</span><span id="layers"></span></div>
   </div>
 
-  <form class="searchrow" id="form">
-    <input id="q" placeholder="Type any sound or vibe… e.g. “a door slamming”, “someone nervous”, “crowd at a stadium”" autocomplete="off">
-    <button type="submit">Search</button>
-  </form>
+  <div class="hero">
+    <div>
+      <h1>Search sound, <span class="g">not words.</span></h1>
+      <p class="tag">Coughs, sighs, waves, an angry tone: no transcript holds them. <a href="#how">How it works ↓</a></p>
+    </div>
+    <form class="sbox" id="form" autocomplete="off">
+      <div class="sin">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" aria-label="Search the sound">
+        <span class="kbd" title="Press / to search">/</span>
+        <span class="mseg" id="models" role="group" aria-label="Model">
+          <button type="button" data-m="clap" style="--c:var(--clap)">CLAP<small>names sounds</small></button>
+          <button type="button" data-m="gemma" style="--c:var(--gemma)">Gemma<small>hears talk</small></button>
+        </span>
+        <button class="go" type="submit">Search</button>
+      </div>
+    </form>
+  </div>
+
   <div class="chips" id="chips"></div>
 
-  <div class="main">
-    <div class="card mapcard">
-      <canvas id="map" aria-label="Map of every clip; clips that sound alike sit close together. Matches are circled."></canvas>
-      <div class="legend" id="legend"></div>
-      <div class="zoom"><button id="zoomm">Zoom to matches</button><button id="zoomr">Reset view</button></div>
-      <div class="hint">Scroll to zoom · drag to pan · click a dot to play</div>
+  <div class="stage">
+    <div class="mapcard" id="mapcard">
+      <canvas id="map" aria-label="Map of every clip: clips that sound alike sit close together. Matches light up."></canvas>
+      <div class="sweep" id="sweep"></div>
+      <div class="mtools">
+        <button class="sq" id="zin" title="Zoom in">+</button><button class="sq" id="zout" title="Zoom out">−</button>
+        <button id="zfit" title="Fly to the matches">Fly to matches</button><button id="zreset" title="Show everything">Whole map</button>
+      </div>
+      <div class="mlegend" id="mlegend"></div>
+      <div class="mhint" id="mhint">Hover to peek · click to play · scroll to zoom · drag to pan</div>
+      <canvas id="mini" title="Overview: click to jump"></canvas>
       <div class="tip" id="tip"></div>
     </div>
-    <div class="card panel" id="panel"></div>
+    <div class="panel" id="panel"></div>
   </div>
 
-  <div class="below" id="how">
-    <p class="divider">That is the demo. Everything below is the how.</p>
+  <div class="fold" id="how"><b>That's the demo.</b> Below: how well it works, and how.</div>
 
-    <h2>What's in the collection</h2>
+  <section class="sec" id="words">
+    <div class="kick">01 · Words → sounds</div>
+    <h2>Type a sound, get the sound</h2>
+    <p class="lead">For each ready-made search: how many of the top 10 clips carry the right human label. Click a dot to run it.</p>
+    <div class="cardx chartgrid">
+      <div class="chart" id="ch-words"><div class="ctip"></div></div>
+      <div class="side">
+        <div class="clegend"><span><i style="--c:var(--clap)"></i>CLAP</span><span><i style="--c:var(--gemma)"></i>Gemma</span></div>
+        <div class="tile" style="--c:var(--clap)"><div class="k">CLAP, average</div><div class="v" id="t-clap">–</div><div class="s">of 10 right · trained on sounds with captions</div></div>
+        <div class="tile" style="--c:var(--gemma)"><div class="k">Gemma, average</div><div class="v" id="t-gemma">–</div><div class="s">of 10 right · never shown captioned sounds</div></div>
+      </div>
+    </div>
+    <ul class="pts" id="pts-words"></ul>
+  </section>
+
+  <section class="sec" id="moods">
+    <div class="kick">02 · Heard, not named</div>
+    <h2>The model hears the mood. Words can't reach it.</h2>
+    <p class="lead">CREMA-D actors say the same sentences in six moods, so a transcript is identical. Typing the mood finds nothing; clicking a clip finds its kind. Bars: how many of an average clip's 10 nearest neighbours share its mood.</p>
+    <div class="cardx chartgrid">
+      <div class="chart" id="ch-emo"><div class="ctip"></div></div>
+      <div class="side">
+        <div class="clegend"><span><i style="--c:var(--clap)"></i>CLAP</span><span><i style="--c:var(--gemma)"></i>Gemma</span><span><i class="dash"></i>chance</span></div>
+        <div class="tile" style="--c:var(--bad)"><div class="k">Typed “an angry voice”</div><div class="v" id="t-typed">–</div><div class="s">angry clips in the top 10</div></div>
+        <div class="tile" style="--c:var(--ok)"><div class="k">Clicked an angry clip</div><div class="v" id="t-clicked">–</div><div class="s">neighbours also angry, on average (chance 1.7)</div></div>
+      </div>
+    </div>
+    <ul class="pts" id="pts-emo"></ul>
+  </section>
+
+  <section class="sec" id="collections">
+    <div class="kick">03 · On the map</div>
+    <h2>Three collections, one space</h2>
+    <p class="lead">Every clip sits in the same space, whatever it came from. The layer buttons at the top hide any of them.</p>
     <div class="cols3" id="colcards"></div>
+  </section>
 
-    <h2>How it works</h2>
-    <ul>
-      <li>Every clip is turned into a list of numbers (an <b>embedding</b>) by an audio–text model. Clips that sound alike get similar numbers, and so does <b>a sentence describing the sound</b>.</li>
-      <li>A search embeds your words with the same model and returns the clips whose numbers are closest. <span class="hlk">No transcript, tags or titles are used.</span></li>
-      <li>The map squeezes the embeddings to 2-D (UMAP), so neighbours on the map sound alike. Circles are the top matches; click any dot to hear it.</li>
-      <li><b>“Sounds like this”</b> skips words entirely: it finds the clips whose embedding is closest to the one you picked.</li>
-      <li>✓ / ✗ come from each dataset's human labels, which the search never sees. Podcast clips have no labels, so they show <b>?</b>: listen to judge.</li>
+  <section class="sec" id="pipeline">
+    <div class="kick">04 · How it works</div>
+    <h2>One model, two inputs, one space</h2>
+    <p class="lead">Nothing is transcribed or tagged. Sound and words become the same kind of vector, and search is just “nearest”.</p>
+    <div class="cardx flow">
+      <div class="lane">
+        <div class="node"><span class="e">🎧</span><div><div class="t">A clip</div><div class="s">2–20 s of audio</div></div></div><div class="arrow">→</div>
+        <div class="node model"><span class="e">🧠</span><div><div class="t">CLAP or Gemma</div><div class="s">audio encoder</div></div></div><div class="arrow">→</div>
+        <div class="node vec"><div class="spark" id="spark1"></div><div><div class="t">A vector</div><div class="s">512 / 768 numbers</div></div></div><div class="arrow">→</div>
+        <div class="node"><span class="e">✨</span><div><div class="t">A dot on the map</div><div class="s">UMAP squeezes it to 2-D</div></div></div>
+      </div>
+      <div class="lane">
+        <div class="node"><span class="e">⌨️</span><div><div class="t">Your words</div><div class="s">“a dog barking”</div></div></div><div class="arrow">→</div>
+        <div class="node model"><span class="e">🧠</span><div><div class="t">The same model</div><div class="s">text encoder</div></div></div><div class="arrow">→</div>
+        <div class="node vec"><div class="spark" id="spark2"></div><div><div class="t">A vector</div><div class="s">same space as the clips</div></div></div><div class="arrow">→</div>
+        <div class="node"><span class="e">🎯</span><div><div class="t">Nearest clips light up</div><div class="s">cosine similarity</div></div></div>
+      </div>
+    </div>
+    <ul class="pts">
+      <li><b>“Sounds like this”</b> skips words: it ranks clips by how close their vectors are to the clip you picked.</li>
+      <li><mark class="hl">✓ / ✗ come from human labels</mark> the search never sees. Podcasts have no clip labels: <b>?</b> means listen and judge.</li>
+      <li>Embeddings come from two finished sister studies (audio-vocab, podcast-vibe-search). Nothing was trained for this page.</li>
     </ul>
+  </section>
 
-    <h2>Two models, two strengths</h2>
-    <ul>
-      <li><b>CLAP</b> (LAION, 2023) was trained on sounds paired with captions, so it can <span class="hlk">name sound events</span>: cough, sneeze, applause, rain.</li>
-      <li><b>Gemma</b> (EmbeddingGemma 2, Google) was not trained on captioned sound effects. It is weak at naming events but <span class="hlk">stronger on how people talk</span>: a news reader, friends joking.</li>
-      <li>From the sister study (audio-vocab): on ESC-50, words find the right sound 90% of the time with CLAP and 25% with Gemma.</li>
-    </ul>
-
+  <section class="sec" id="fine">
+    <div class="kick">05 · Fine print</div>
     <h2>What the numbers don't show</h2>
-    <ul id="caveats">
-      <li><b>Emotion is heard but can't be named.</b> Typing “an angry voice” finds almost no angry clips (in CREMA-D the sentence is identical across moods). But <span class="hlk">“Sounds like this” works above chance</span>: across all angry clips, about 5 of the 10 nearest are also angry (chance 1.7); neutral 3.9, sad 3.2, the rest 2.2–2.6. The model hears the mood more than words can reach it, but only coarsely. The “By example” chips use the most typical clip, so they look better than average.</li>
-      <li><b>Some words miss.</b> “Clearing throat” and “shouting” reach only 4 of 10: their neighbours are coughs and screams. Here one plain word beat a richer description (0 → 4 of 10).</li>
-      <li><b>Labels are strict.</b> A ✗ can still sound right (a giggle under “laughter” counts; a laughing crowd in a “clapping” clip doesn't).</li>
-      <li><b>Podcasts are 20 s clips</b>, the others 2–10 s, so a short cough inside a podcast clip is diluted.</li>
+    <ul class="pts">
+      <li><b>Labels are strict.</b> A ✗ can still sound right: a giggle counts as laughter, but a crowd laughing inside an “applause” clip doesn't.</li>
+      <li><b>Neighbours confuse neighbours.</b> “Clearing throat” and “shouting” reach only 4 of 10: their nearest clips are coughs and screams. Here <mark class="hl">one plain word beat a richer description</mark> (0 → 4 of 10).</li>
+      <li><b>The example chips are the best case.</b> “Like this angry clip” uses the most typical angry clip; chart 02 shows the average.</li>
+      <li><b>Podcast clips are 20 s long</b>, the others 2–10 s, so a short cough inside a podcast is diluted. Podcasts also cluster by show (same hosts, mic and music).</li>
+      <li><b>FSD50K audio</b> plays once its zip is imported (it was embedded in Colab).</li>
     </ul>
+    <div class="code" style="margin-top:16px">../audio-vocab/.venv/Scripts/python scripts/serve.py          # http://127.0.0.1:8770/
+../audio-vocab/.venv/Scripts/python scripts/build.py --drop podcasts   # rebuild without a collection</div>
+  </section>
 
-    <h2>Run it</h2>
-    <ul>
-      <li><code>../audio-vocab/.venv/Scripts/python scripts/serve.py</code> → <code>http://127.0.0.1:8770/</code> (typed search and audio need the server; chips work offline).</li>
-      <li>Rebuild: <code>scripts/build.py</code>; leave a collection out with <code>--drop podcasts</code> (or emotions / sounds). The layer buttons at the top hide one without rebuilding.</li>
-      <li>Embeddings come from the sister repos (audio-vocab, podcast-vibe-search); nothing is re-trained.</li>
-    </ul>
-  </div>
+  <footer>Sound Search · LAION-CLAP and EmbeddingGemma 2 · VocalSound, ESC-50, FSD50K, CREMA-D and 39 podcasts · served locally</footer>
 </div>
 
+<div class="dock" id="dock">
+  <button class="dplay" id="dplay" aria-label="Play or pause">▶</button>
+  <canvas id="spec" width="300" height="80"></canvas>
+  <div style="min-width:0"><div class="dname" id="dname"></div><div class="dmeta" id="dmeta"></div></div>
+  <button class="dbtn" id="dsim">≈ Sounds like this</button>
+  <button class="dx" id="dclose" aria-label="Close">✕</button>
+  <div class="dprog"><b id="dprog"></b></div>
+</div>
+<div class="toast" id="toast"></div>
 <audio id="audio" preload="none"></audio>
 <script src="data.js"></script>
-<script>
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const IT = DATA.items.map(([col, label, name, x, y, dur], i) => ({i, col, label, name, x, y, dur}));
-const COLS = {
-  sounds:   {name: "Sound effects", v: "--c1", blurb: "VocalSound, ESC-50, FSD50K: coughs, sneezes, laughter, waves, typing… human-labelled."},
-  emotions: {name: "Emotional speech", v: "--c2", blurb: "CREMA-D: actors say the same 12 sentences angry, disgusted, afraid, happy, sad or neutral."},
-  podcasts: {name: "Podcasts", v: "--c3", blurb: "117 episodes of 39 real shows, minutes 2–10, cut into 20 s clips. No labels."},
-};
-const present = DATA.collections.filter(c => IT.some(t => t.col === c));
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const S = {model: "clap", on: new Set(present), k: 10, query: null, sel: null, playing: null, hover: null};
-
-// ---------- labels for ✓ / ✗ ----------
-const pretty = l => ({ANG: "angry", DIS: "disgusted", FEA: "afraid", HAP: "happy", SAD: "sad", NEU: "neutral",
-  throatclearing: "throat clearing"}[l] || String(l).replace(/_/g, " "));
-function verdict(t, q) {
-  if (t.col === "podcasts") return "unk";
-  if (q.labels) return q.labels.has(t.label) ? "ok" : "bad";
-  return null;
-}
-
-// ---------- example chips: for each emotion, the CREMA-D clip whose neighbours agree with it most ----------
-const EXAMPLES = ["ANG", "SAD", "HAP", "FEA"].map(lab => {
-  let best = null, bs = -1;
-  for (const t of IT) if (t.col === "emotions" && t.label === lab) {
-    const s = DATA.nn.clap[t.i].slice(0, 10).filter(j => IT[j].label === lab).length;
-    if (s > bs) { bs = s; best = t.i; }
-  }
-  return best === null ? null : {title: `Like this ${pretty(lab)} clip`, idx: best, label: lab};
-}).filter(Boolean);
-// The honest number next to the hand-picked example: across ALL clips of this emotion, how many of the 10 nearest
-// share it (chance = 1 in 6).
-function typical(lab, model) {
-  const ids = IT.filter(t => t.col === "emotions" && t.label === lab);
-  const avg = ids.reduce((a, t) => a + DATA.nn[model][t.i].slice(0, 10).filter(j => IT[j].label === lab).length, 0) / ids.length;
-  return avg.toFixed(1);
-}
-
-// ---------- controls ----------
-function renderLayers() {
-  $("layers").innerHTML = present.map(c => `<span class="layer ${S.on.has(c) ? "" : "off"}" data-col="${c}">
-    <i style="background:var(${COLS[c].v})"></i>${COLS[c].name} <span style="color:var(--mut)">${IT.filter(t => t.col === c).length.toLocaleString()}</span></span>`).join(" ");
-}
-$("layers").onclick = e => {
-  const c = e.target.closest(".layer")?.dataset.col; if (!c) return;
-  if (S.on.has(c)) { if (S.on.size > 1) S.on.delete(c); } else S.on.add(c);
-  renderLayers(); rerun();
-};
-$("models").onclick = e => { const m = e.target.dataset.m; if (!m) return; S.model = m; renderModels(); rerun(); };
-function renderModels() { document.querySelectorAll("#models button").forEach(b => b.classList.toggle("on", b.dataset.m === S.model)); }
-
-const groups = {};
-DATA.chips.forEach((c, n) => (groups[c.group] ||= []).push(n));
-function renderChips() {
-  const active = S.query;
-  let h = Object.entries(groups).map(([g, ns]) => `<span class="cg"><span class="gl">${g}</span>${ns.map(n =>
-    `<button class="chip ${active?.chip === n ? "on" : ""}" data-chip="${n}">${esc(DATA.chips[n].title)}</button>`).join("")}</span>`).join("");
-  if (EXAMPLES.length && present.includes("emotions"))
-    h += `<span class="cg"><span class="gl">By example</span>${EXAMPLES.map((x, n) =>
-      `<button class="chip ex ${active?.ex === n ? "on" : ""}" data-ex="${n}" title="No words: finds clips that sound like this one">${esc(x.title)}</button>`).join("")}</span>`;
-  $("chips").innerHTML = h;
-}
-$("chips").onclick = e => {
-  const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.chip !== undefined) runChip(+b.dataset.chip, true);
-  else runSimilar(EXAMPLES[+b.dataset.ex].idx, +b.dataset.ex);
-};
-$("form").onsubmit = e => { e.preventDefault(); const q = $("q").value.trim(); if (q) runText(q); };
-
-// ---------- queries ----------
-const visible = t => S.on.has(t.col);
-function topFrom(ranked) { return ranked.filter(i => visible(IT[i])).slice(0, S.k); }
-
-function runChip(n, fromClick) {
-  const c = DATA.chips[n];
-  if (fromClick) S.model = c.model, renderModels();
-  S.query = {kind: "chip", chip: n, title: c.title, labels: c.labels.length ? new Set(c.labels) : null,
-             ranked: c[S.model].map(x => x[0]), sub: `ready-made search · ${S.model.toUpperCase()}`};
-  show();
-}
-let textSeq = 0;
-async function runText(q) {
-  const my = ++textSeq, model = S.model;
-  S.query = {kind: "text", text: q, title: `“${q}”`, labels: null, ranked: [], sub: `your words · ${model.toUpperCase()}`, loading: true};
-  show();
-  try {
-    const r = await fetch(`/search?model=${model}&q=${encodeURIComponent(q)}`);
-    if (!r.ok) throw new Error(r.status);
-    const s = (await r.json()).scores;
-    if (my !== textSeq) return;
-    const ranked = s.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 400).map(x => x[1]);
-    // if the words match a chip's labels, still show ✓/✗
-    const ch = DATA.chips.find(c => c.title.toLowerCase() === q.toLowerCase());
-    Object.assign(S.query, {ranked, loading: false, labels: ch && ch.labels.length ? new Set(ch.labels) : null});
-  } catch (err) {
-    if (my !== textSeq) return;
-    Object.assign(S.query, {loading: false, error: true});
-  }
-  show();
-}
-function runSimilar(idx, ex) {
-  const t = IT[idx];
-  S.query = {kind: "similar", src: idx, ex, title: `Sounds like: ${t.name}`, labels: t.col === "podcasts" ? null : new Set([t.label]),
-             ranked: DATA.nn[S.model][idx], sub: `no words, nearest clips · ${S.model.toUpperCase()}`};
-  S.sel = idx;
-  show();
-}
-function rerun() {
-  const q = S.query; if (!q) return draw();
-  if (q.kind === "chip") runChip(q.chip, false);
-  else if (q.kind === "text") runText(q.text);
-  else runSimilar(q.src, q.ex);
-}
-
-// ---------- the panel ----------
-function show() { renderChips(); renderPanel(); draw(); }
-function collDot(t) { return `<span class="coll"><i style="background:var(${COLS[t.col].v})"></i>${COLS[t.col].name}</span>`; }
-function renderPanel() {
-  const q = S.query;
-  if (!q) {
-    $("panel").innerHTML = `<div class="qtitle">Pick a search above, or type your own</div>
-      <div class="empty">Each dot on the map is one clip; clips that sound alike sit together.
-      <ul><li><b>Click a chip</b> to circle its top matches and see how many are right.</li>
-      <li><b>Click any dot</b> to hear it, then “Sounds like this” to find its neighbours.</li>
-      <li><b>Type anything</b>: the words are matched to the sound, not to a transcript.</li></ul></div>
-      ${S.sel !== null ? selBox() : ""}`;
-    return;
-  }
-  const top = topFrom(q.ranked);
-  let head = `<div class="qline">${esc(q.sub)}</div><div class="qtitle">${esc(q.title)}</div>`;
-  if (q.loading) { $("panel").innerHTML = head + `<div class="empty">Embedding your words…</div>`; return; }
-  if (q.error) { $("panel").innerHTML = head + `<div class="err">Typed search needs the local server (scripts/serve.py). The ready-made chips work without it.</div>`; return; }
-  const v = top.map(i => verdict(IT[i], q)), lab = v.filter(x => x === "ok" || x === "bad");
-  const ok = v.filter(x => x === "ok").length;
-  let score = "";
-  if (lab.length) score = `<div class="score"><span class="big">${ok} of ${lab.length}</span><span class="of">labelled clips are ${q.kind === "similar" ? "the same kind (" + esc(pretty(IT[q.src].label)) + ")" : "right"}${v.includes("unk") ? ` · ${v.filter(x => x === "unk").length} podcast clips: listen` : ""}</span></div>`;
-  else if (top.length) score = `<div class="score"><span class="of">${q.kind === "text" ? "Your own words have no answer key: check each clip's label, or" : "Podcasts have no clip labels (the show type is shown under each):"} <b>click to listen</b>.</span></div>`;
-  if (q.kind === "similar" && IT[q.src].col === "emotions")
-    score += `<div class="note" style="margin:-4px 0 8px">${q.ex !== undefined ? "This clip was picked as the most typical one. " : ""}Across <b>all</b> ${esc(pretty(IT[q.src].label))} clips, on average <b>${typical(IT[q.src].label, S.model)} of 10</b> neighbours share the mood (chance: 1.7).</div>`;
-  const rows = top.map((i, r) => {
-    const t = IT[i], vv = v[r];
-    const mk = vv === "ok" ? "✓" : vv === "bad" ? "✗" : vv === "unk" ? "?" : "";
-    return `<div class="res ${S.playing === i ? "playing" : ""} ${S.sel === i ? "sel" : ""}" data-i="${i}">
-      <button class="play" data-play="${i}" aria-label="Play">${S.playing === i && !$("audio").paused ? "❚❚" : "▶"}</button>
-      <span class="mk ${vv || ""}">${mk}</span>
-      <span><div class="nm">${esc(t.name)}</div><div class="lb">${collDot(t)}${t.col !== "podcasts" ? " · label: " + esc(pretty(t.label)) : " · " + esc(t.label)}</div></span>
-      <span></span></div>`;
-  }).join("");
-  $("panel").innerHTML = head + score + (rows || `<div class="empty">No clips in the visible collections.</div>`) +
-    `<div class="kpick">Show top <span class="seg" id="kseg">${[10, 20, 50].map(k => `<button class="${S.k === k ? "on" : ""}" data-k="${k}">${k}</button>`).join("")}</span></div>` +
-    (S.sel !== null ? selBox() : "");
-}
-function selBox() {
-  const t = IT[S.sel];
-  return `<button class="similar" data-sim="${S.sel}">Sounds like this: <b>${esc(t.name)}</b> →</button>`;
-}
-$("panel").onclick = e => {
-  const k = e.target.closest("[data-k]"); if (k) { S.k = +k.dataset.k; return show(); }
-  const sim = e.target.closest("[data-sim]"); if (sim) return runSimilar(+sim.dataset.sim);
-  const row = e.target.closest("[data-i]"); if (row) { const i = +row.dataset.i; S.sel = i; play(i); }
-};
-
-// ---------- audio ----------
-const audio = $("audio");
-function play(i) {
-  if (S.playing === i && !audio.paused) { audio.pause(); return show(); }
-  S.playing = i; S.sel = i;
-  audio.src = `/audio/${i}`;
-  audio.play().catch(() => { S.playError = true; renderPanel(); });
-  show();
-}
-audio.onplay = audio.onpause = audio.onended = () => { renderPanel(); draw(); };
-audio.onerror = () => {
-  if (S.playing === null) return;
-  const d = document.createElement("div"); d.className = "err";
-  d.textContent = location.protocol === "file:" ? "Audio needs the local server (scripts/serve.py)." : "This clip's audio isn't available on this machine.";
-  $("panel").appendChild(d);
-};
-
-// ---------- the map ----------
-const cv = $("map"), ctx = cv.getContext("2d");
-let W, H, P = 18, scale = 1;
-function size() {
-  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-  W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-let V = {x0: 0, y0: 0, w: 1, h: 1};   // the visible part of the [0,1]² map (zoom and pan)
-const px = t => P + (t.x - V.x0) / V.w * (W - 2 * P), py = t => P + (V.y0 + V.h - t.y) / V.h * (H - 2 * P);
-const toData = (mx, my) => [V.x0 + (mx - P) / (W - 2 * P) * V.w, V.y0 + V.h - (my - P) / (H - 2 * P) * V.h];
-function zoomTo(ids) {
-  if (!ids.length) return;
-  const xs = ids.map(i => IT[i].x), ys = ids.map(i => IT[i].y);
-  const s = Math.min(1, Math.max(0.08, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 1.6);
-  const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
-  V = {x0: cx - s / 2, y0: cy - s / 2, w: s, h: s}; draw();
-}
-function resetView() { V = {x0: 0, y0: 0, w: 1, h: 1}; draw(); }
-function draw() {
-  if (!W) size();
-  ctx.clearRect(0, 0, W, H);
-  const q = S.query, top = q && !q.loading && !q.error ? topFrom(q.ranked) : [];
-  const dim = top.length ? 0.22 : 0.6;
-  const col = {}; for (const c of present) col[c] = css(COLS[c].v);
-  ctx.globalAlpha = dim;
-  for (const t of IT) {
-    if (!visible(t)) continue;
-    ctx.fillStyle = col[t.col];
-    ctx.beginPath(); ctx.arc(px(t), py(t), 2.2, 0, 7); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  const ink = css("--ink"), surf = css("--surface"), okc = css("--ok"), badc = css("--bad"), unk = css("--unk");
-  // matches: filled dot + ring coloured by verdict (icon in the panel carries the meaning too)
-  top.slice().reverse().forEach(i => {
-    const t = IT[i], v = verdict(t, q), x = px(t), y = py(t);
-    ctx.fillStyle = col[t.col]; ctx.strokeStyle = surf; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = v === "ok" ? okc : v === "bad" ? badc : v === "unk" ? unk : ink; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
-  });
-  if (q && q.kind === "similar") ring(IT[q.src], ink, 13, 3);
-  if (S.sel !== null && (!q || q.src !== S.sel)) ring(IT[S.sel], ink, 7, 2);
-  if (S.playing !== null && !audio.paused) ring(IT[S.playing], css("--hl"), 15, 2.5);
-  if (S.hover !== null) ring(IT[S.hover], ink, 6, 1.5);
-}
-function ring(t, c, r, w) {
-  ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(px(t), py(t), r, 0, 7); ctx.stroke();
-}
-function nearest(e) {
-  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-  let best = null, bd = 100;
-  for (const t of IT) { if (!visible(t)) continue; const d = (px(t) - mx) ** 2 + (py(t) - my) ** 2; if (d < bd) { bd = d; best = t.i; } }
-  return [best, mx, my];
-}
-cv.onwheel = e => {
-  e.preventDefault();
-  const r = cv.getBoundingClientRect(), [dx, dy] = toData(e.clientX - r.left, e.clientY - r.top);
-  const f = e.deltaY < 0 ? 0.8 : 1.25;
-  if (V.w * f >= 1) return resetView();
-  V = {x0: dx - (dx - V.x0) * f, y0: dy - (dy - V.y0) * f, w: V.w * f, h: V.h * f}; draw();
-};
-let drag = null;
-cv.onmousedown = e => { drag = {x: e.clientX, y: e.clientY, v: {...V}, moved: false}; };
-window.addEventListener("mouseup", () => setTimeout(() => drag = null, 0));
-cv.onmousemove = e => {
-  if (drag && e.buttons) {
-    const ddx = e.clientX - drag.x, ddy = e.clientY - drag.y;
-    if (Math.abs(ddx) + Math.abs(ddy) > 4) drag.moved = true;
-    if (drag.moved) {
-      V = {...drag.v, x0: drag.v.x0 - ddx / (W - 2 * P) * V.w, y0: drag.v.y0 + ddy / (H - 2 * P) * V.h};
-      $("tip").style.display = "none"; return draw();
-    }
-  }
-  const [i, mx, my] = nearest(e), tip = $("tip");
-  if (i !== S.hover) { S.hover = i; draw(); }
-  if (i === null) { tip.style.display = "none"; return; }
-  const t = IT[i];
-  tip.innerHTML = `${esc(t.name)}${t.col !== "podcasts" ? ` <span style="opacity:.7">· ${esc(pretty(t.label))}</span>` : ""}`;
-  tip.style.display = "block";
-  const tw = tip.offsetWidth;
-  tip.style.left = Math.min(mx + 22, W - tw) + "px"; tip.style.top = (my + 4) + "px";
-};
-cv.onmouseleave = () => { S.hover = null; $("tip").style.display = "none"; draw(); };
-cv.onclick = e => { if (drag?.moved) return; const [i] = nearest(e); if (i !== null) play(i); };
-$("zoomm").onclick = () => { const q = S.query; zoomTo(q && q.ranked ? topFrom(q.ranked).concat(q.kind === "similar" ? [q.src] : []) : []); };
-$("zoomr").onclick = resetView;
-window.addEventListener("resize", () => { size(); draw(); });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
-
-function renderLegend() {
-  $("legend").innerHTML = present.map(c => `<span><i style="background:var(${COLS[c].v})"></i>${COLS[c].name}</span>`).join("") +
-    `<span><i class="ring" style="border-color:var(--ok)"></i>match, label agrees ✓</span>
-     <span><i class="ring" style="border-color:var(--bad)"></i>match, label disagrees ✗</span>
-     <span><i class="ring" style="border-color:var(--unk)"></i>match, no label ?</span>`;
-}
-$("colcards").innerHTML = present.map(c => `<div class="card"><h3><i style="background:var(${COLS[c].v})"></i>${COLS[c].name}
-  <span style="color:var(--mut);font-weight:400">${IT.filter(t => t.col === c).length.toLocaleString()} clips</span></h3><p>${COLS[c].blurb}</p></div>`).join("");
-
-renderLayers(); renderModels(); renderLegend(); size(); show();
-// deep links: #chip=cough, #ex=0, #q=a door slamming
-const H0 = new URLSearchParams(location.hash.slice(1));
-if (H0.get("chip")) { const n = DATA.chips.findIndex(c => c.key === H0.get("chip")); if (n >= 0) runChip(n, true); }
-else if (H0.get("ex")) runSimilar(EXAMPLES[+H0.get("ex")].idx, +H0.get("ex"));
-else if (H0.get("q")) { $("q").value = H0.get("q"); runText(H0.get("q")); }
-if (H0.has("zoom")) $("zoomm").click();
-</script>
+<script src="app.js"></script>
 </body>
 </html>
