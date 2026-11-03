@@ -44,7 +44,7 @@ def main():
         print(f"{m}: {sum(ok)} of {len(ok)} clips", flush=True)
 
     # 2. the page, told to play the static clips
-    for f in ("app.js", "data_real.js", "data_sounds.js"):
+    for f in ("app.js", "data_real.js", "data_sounds.js", "credits_real.js", "credits_sounds.js"):
         shutil.copy2(HERE / "docs" / f, web / f)
     html = (HERE / "docs" / "index.html").read_text(encoding="utf-8")
     html = html.replace("<title>Sound Search</title>", "<title>Sound Search</title>\n<script>window.BUNDLE = true;</script>", 1)

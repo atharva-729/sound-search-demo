@@ -370,6 +370,15 @@ ul.pts b { color: var(--ink); }
 @keyframes nudge { 50% { transform: translateX(3px); color: #c4b5fd; } }
 .code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; color: var(--soft); background: var(--well); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; overflow-x: auto; white-space: pre; }
 footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: center; }
+footer a, .credits a, .dcred a { color: inherit; text-decoration-color: rgba(var(--fg), .3); text-underline-offset: 3px; }
+/* GitHub Pages: no typed search (it runs the models live); clips play from GitHub Releases */
+.nosearch { display: none; flex: 1; min-width: 0; color: var(--soft); font-size: 13px; padding: 6px 4px; line-height: 1.35; }
+.hosted .sin input, .hosted .sin > svg, .hosted .kbd, .hosted .go, .hosted .onmap .tryline { display: none; }
+.hosted .nosearch { display: block; }
+.dcred { font-size: 11.5px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.credits { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px 22px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--soft); }
+.credits b { color: var(--ink); }
+.credits small { display: block; color: var(--mut); font-size: 12px; margin-top: 2px; }
 #layers { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .cg { min-width: 0; max-width: 100%; }
 @media (max-width: 640px) {
@@ -416,6 +425,7 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--clap)" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="q" aria-label="Search the sound">
         <span class="kbd" title="Press / to search">/</span>
+        <span class="nosearch">Typed search runs the models live, so it's in the <a href="https://github.com/atharva-729/sound-search-demo#run">local version</a>. Here: the ready-made searches below, or <b>≈</b> on any clip.</span>
         <span class="mseg" id="models" role="group" aria-label="Model">
           <button type="button" data-m="auto" style="--c:#a78bfa" title="Asks both models and combines them. Best default.">Auto<small>best of both</small></button>
           <button type="button" data-m="clap" style="--c:var(--clap)" title="Trained on captioned sound effects: best for sound effects and music">CLAP<small>sounds · music</small></button>
@@ -515,19 +525,38 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
       <li><b>Neighbours confuse neighbours.</b> “Clearing throat” and “shouting” reach only 4 of 10: their nearest clips are coughs and screams. Here <mark class="hl">one plain word beat a richer description</mark> (0 → 4 of 10).</li>
       <li><b>The example chips are the best case.</b> “Angry clip → similar” starts from the most typical angry clip; chart 02 shows the average.</li>
       <li><b>Podcast clips are 20 s long</b>, the others 2–10 s, so a short cough inside a podcast is diluted. Podcasts also cluster by show (same hosts, mic and music).</li>
-      <li><b>FSD50K audio</b> plays once its zip is imported (it was embedded in Colab).</li>
+      <li><b>This public page</b> plays clips from GitHub Releases, and podcasts from their publishers' servers, where inserted ads can move a clip by a few seconds. It has no typed search: the local version (below) runs it.</li>
     </ul>
     <div class="code" style="margin-top:16px">../audio-vocab/.venv/Scripts/python scripts/serve.py          # http://127.0.0.1:8770/
 ../audio-vocab/.venv/Scripts/python scripts/build.py --drop podcasts   # rebuild without a collection</div>
   </section>
 
-  <footer>Sound Search · LAION-CLAP and EmbeddingGemma 2 · VocalSound, ESC-50, FSD50K, CREMA-D and 39 podcasts · served locally</footer>
+  <section class="sec" id="credits">
+    <div class="kick">06 · Credits</div>
+    <h2>Whose sound this is</h2>
+    <p class="lead">Every clip keeps its own licence. The player shows the credit of the clip that's playing; the full per-clip list is in
+      <a href="https://github.com/atharva-729/sound-search-demo/tree/main/credits">credits/</a> on GitHub. Much of this audio is <b>non-commercial only</b> (NC).</p>
+    <ul class="credits">
+      <li><b>ESC-50</b>: K. J. Piczak, “ESC: Dataset for Environmental Sound Classification”, ACM Multimedia 2015.<small>Dataset CC BY-NC 3.0 (ESC-10 subset CC BY 3.0). Clips from Freesound.org, each credited to its uploader.</small></li>
+      <li><b>FSD50K</b>: E. Fonseca, X. Favory, J. Pons, F. Font, X. Serra, “FSD50K: an Open Dataset of Human-Labeled Sound Events”, IEEE/ACM TASLP 2022.<small>Dataset CC BY 4.0. Clips from Freesound.org under CC0, CC BY, CC BY-NC or Sampling+, each credited to its uploader.</small></li>
+      <li><b>VocalSound</b>: Y. Gong, J. Yu, J. Glass, “VocalSound: A Dataset for Improving Human Vocal Sounds Recognition”, ICASSP 2022.<small>CC BY-SA 4.0.</small></li>
+      <li><b>CREMA-D</b>: H. Cao, D. G. Cooper, M. K. Keutmann, R. C. Gur, A. Nenkova, R. Verma, “CREMA-D: Crowd-sourced Emotional Multimodal Actors Dataset”, IEEE Trans. Affective Computing 2014.<small>ODbL 1.0 (database), DbCL 1.0 (contents).</small></li>
+      <li><b>xeno-canto</b>: bird recordings from <a href="https://xeno-canto.org">xeno-canto.org</a>, each credited to its recordist.<small>Per recording: mostly CC BY-NC-SA; some CC0, CC BY-SA or CC BY-NC.</small></li>
+      <li><b>FMA</b>: M. Defferrard, K. Benzi, P. Vandergheynst, X. Bresson, “FMA: A Dataset for Music Analysis”, ISMIR 2017.<small>Tracks from the Free Music Archive, each under its artist's licence (mostly CC BY-NC variants). Metadata CC BY 4.0.</small></li>
+      <li><b>MTG-Jamendo</b>: D. Bogdanov, M. Won, P. Tovstogan, A. Porter, X. Serra, “The MTG-Jamendo Dataset for Automatic Music Tagging”, ICML 2019 ML4MD workshop.<small>Tracks from Jamendo under CC licences; made available for non-commercial research use.</small></li>
+      <li><b>Musopen</b>: recordings by <a href="https://musopen.org">Musopen</a>, via the Internet Archive.<small>Public Domain Mark 1.0.</small></li>
+      <li><b>Podcasts</b>: 2,808 clips from 39 shows, minutes 2–10 of three episodes each.<small>Copyright of their publishers. Not copied here: each clip plays straight from the episode on the publisher's own server, as in a podcast app. Inserted ads can shift a clip by a few seconds.</small></li>
+      <li><b>Models</b>: LAION-CLAP (HTS-AT, unfused) and Google's EmbeddingGemma 2.<small>Used as published; nothing was trained for this page.</small></li>
+    </ul>
+  </section>
+
+  <footer>Sound Search · code <a href="https://github.com/atharva-729/sound-search-demo/blob/main/LICENSE">MIT</a>, audio under the licences above · <a href="https://github.com/atharva-729/sound-search-demo">GitHub</a></footer>
 </div>
 
 <div class="dock" id="dock">
   <button class="dplay" id="dplay" aria-label="Play or pause">▶</button>
   <canvas id="spec" width="300" height="80"></canvas>
-  <div style="min-width:0"><div class="dname" id="dname"></div><div class="dmeta" id="dmeta"></div></div>
+  <div style="min-width:0"><div class="dname" id="dname"></div><div class="dmeta" id="dmeta"></div><div class="dcred" id="dcred"></div></div>
   <button class="dbtn" id="dsim">≈ Sounds like this</button>
   <button class="dx" id="dclose" aria-label="Close">✕</button>
   <div class="dprog"><b id="dprog"></b></div>
@@ -537,7 +566,7 @@ footer { margin-top: 50px; color: var(--mut); font-size: 12.5px; text-align: cen
 <script>
   // which map: ?map=real (default) or ?map=sounds
   window.MAPNAME = new URLSearchParams(location.search).get("map") === "sounds" ? "sounds" : "real";
-  document.write(`<script src="data_${window.MAPNAME}.js"><\/script>`);
+  document.write(`<script src="data_${window.MAPNAME}.js"><\/script><script src="audio_${window.MAPNAME}.js"><\/script>`);
 </script>
 <script src="app.js"></script>
 </body>

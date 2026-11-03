@@ -5,3 +5,4 @@ __pycache__/
 *.wav
 *.zip
 scripts/bundle_files/*.exe
+dist/

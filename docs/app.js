@@ -8,8 +8,14 @@ const ease = t => t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 const backOut = t => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
 
 const MAP = DATA.map || "real";
-// true when served by scripts/serve.py on this machine; false on GitHub Pages
-const LOCAL = !!window.BUNDLE || ["127.0.0.1", "localhost"].includes(location.hostname);
+// true when served by scripts/serve.py on this machine; false on GitHub Pages. ?hosted shows the Pages version locally,
+// ?audio=<url> plays the packs from another address (both for testing).
+const QS = new URLSearchParams(location.search);
+const LOCAL = !QS.has("hosted") && (!!window.BUNDLE || ["127.0.0.1", "localhost"].includes(location.hostname));
+// Pages: clips play from the packs on GitHub Releases (scripts/pack_audio.py); stale packs (a rebuilt map) are ignored
+const HOSTED = !LOCAL && typeof AUDIO !== "undefined" && AUDIO.n === DATA.items.length;
+const AUDIO_BASE = HOSTED ? QS.get("audio") || AUDIO.base : "";
+if (!LOCAL) document.documentElement.classList.add("hosted");
 const IT = DATA.items.map(([col, label, name, x, y, dur, tags], i) => ({i, col, label, name, x, y, dur, tags: tags ? tags.split("|") : []}));
 // colour slot per collection; the two maps never show "sounds" and "music" together
 const COLS = {
@@ -251,7 +257,7 @@ function emptyPanel() {
   if (EXAMPLES.length) sg.push(`<button class="sg" data-ex="0" style="--c:${COLS.voices.color}"><span class="e">😠</span><span><div class="t">Angry clip → similar</div><div class="s">No words: plays an angry clip, finds ones like it</div></span></button>`);
   return `<div class="empty"><div class="onmap"><div class="kick" style="margin-bottom:3px">On this map</div>${ONMAP}</div><h3>Where should we listen?</h3><p>Every dot is a clip. Clips that sound alike sit together.</p>
     <div class="sugg">${sg.join("")}</div>
-    <div class="how3"><div><span>1</span>Pick a search above, or type your own words</div><div><span>2</span>Matches light up on the map, and are scored ✓ / ✗ here</div><div><span>3</span>Click any dot or row to hear it</div></div>
+    <div class="how3"><div><span>1</span>Pick a search above${LOCAL ? ", or type your own words" : ", or press ≈ on any clip"}</div><div><span>2</span>Matches light up on the map, and are scored ✓ / ✗ here</div><div><span>3</span>Click any dot or row to hear it</div></div>
     <div class="wbox" id="clusters"><h4>🏷️ What the capital words on the map mean</h4><ul>
       <li><b>The model only places the clips.</b> The words are added afterwards, from the datasets' human labels.</li>
       <li>If most clips of one label (cough, dogs, rain…) sit tightly together, the label is written at their centre. Podcasts are named by show type; acted emotions share one island.</li>
@@ -294,7 +300,7 @@ function renderPanel() {
   h += `<div class="rows" id="rows">` + current.map((i, r) => {
     const t = IT[i], vv = v[r], c = COLS[t.col].color;
     const bar = q.scores ? `<div class="rbar"><b style="width:${hi > lo ? 35 + 65 * (q.scores.get(i) - lo) / (hi - lo) : 100}%"></b></div>` : "";
-    const meta = t.col === "podcasts" ? esc(t.label) : `label: ${esc(kindOf(t))}`;
+    const meta = (t.col === "podcasts" ? esc(t.label) : `label: ${esc(kindOf(t))}`) + (hosted(i) ? "" : " · local version only");
     return `<div class="row ${S.playing === i ? "playing" : ""}" data-i="${i}" style="--c:${c};animation-delay:${r * 28}ms">
       <span class="rk">${String(r + 1).padStart(2, "0")}</span>
       <button class="pb" data-play="${i}" aria-label="Play">${S.playing === i && !audio.paused ? "❚❚" : "▶"}</button>
@@ -321,7 +327,9 @@ $("panel").onmouseleave = () => { S.hoverRow = null; kick(); };
 const audio = $("audio");
 let AC = null, analyser = null, freq = null, wave = null, level = 0;
 function initAudio() {
-  if (location.protocol === "file:") return;   // browsers mute file:// audio routed through Web Audio; play it plain
+  // browsers mute file:// audio routed through Web Audio, and audio from another site that sends no CORS headers
+  // (GitHub Releases): play those plain, and the visualiser animates on its own
+  if (location.protocol === "file:" || !LOCAL) return;
   if (AC) { if (AC.state === "suspended") AC.resume(); return; }
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -331,13 +339,51 @@ function initAudio() {
     freq = new Uint8Array(analyser.frequencyBinCount); wave = new Uint8Array(analyser.fftSize);
   } catch (e) { AC = null; }
 }
+// where clip i's audio is: its own file locally; on Pages a span [t0, t1] of a pack on GitHub Releases, or for podcasts
+// of the episode on the publisher's server (an absolute URL in AUDIO.packs); null: not on this page
+function clipSrc(i) {
+  if (LOCAL) return {url: window.BUNDLE ? `clips/${MAP}/${i}.mp3` : `/audio/${MAP}/${i}`, t0: 0, t1: 0};
+  const c = HOSTED && AUDIO.clips[i];
+  return c ? {url: new URL(AUDIO.packs[c[0]], AUDIO_BASE).href, t0: c[1], t1: c[1] + c[2]} : null;
+}
+const hosted = i => !!clipSrc(i);
+const LEAD = .15;   // start this much early: the packs have 5 s of silence around every clip
+function seekClip() { if (S.clip?.t1 && audio.readyState >= 1) audio.currentTime = Math.max(0, S.clip.t0 - LEAD); }
+audio.onloadedmetadata = seekClip;
+function clipOver() { return S.clip?.t1 && audio.currentTime >= S.clip.t1 + .1; }
 function play(i) {
   initAudio();
-  if (S.playing === i && audio.src) { audio.paused ? audio.play().catch(() => {}) : audio.pause(); return; }
-  S.playing = i; S.sel = i;
-  audio.src = window.BUNDLE ? `clips/${MAP}/${i}.mp3` : `/audio/${MAP}/${i}`;
+  if (S.playing === i && audio.src) {
+    if (!audio.paused) audio.pause();
+    else { if (clipOver()) seekClip(); audio.play().catch(() => {}); }
+    return;
+  }
+  const s = clipSrc(i);
+  if (!s) {
+    S.sel = i; kick();
+    return toast(IT[i].col === "podcasts" ? "Podcast audio belongs to its publishers, so this page doesn't host it. The local version plays every clip."
+                                          : "This clip's audio isn't on this page yet.");
+  }
+  S.playing = i; S.sel = i; S.clip = s;
+  if (audio.src !== new URL(s.url, location.href).href) audio.src = s.url; else seekClip();
   audio.play().catch(() => {});
   showDock(); syncRows(); kick();
+  showCredit(i);
+}
+// the credit line in the dock: credits_<map>.js (scripts/credits.py) loads on the first play
+let creditsReq = null;
+function showCredit(i) {
+  const el = $("dcred");
+  if (typeof CREDITS === "undefined") {
+    el.textContent = "";
+    if (!creditsReq) { creditsReq = document.createElement("script"); creditsReq.src = `credits_${MAP}.js`; document.head.append(creditsReq); }
+    creditsReq.addEventListener("load", () => S.playing === i && showCredit(i), {once: true});
+    return;
+  }
+  const [who, li, url] = CREDITS.c[i], [lic, lurl] = CREDITS.lic[li];
+  const link = (u, s) => u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${s}</a>` : s;
+  el.innerHTML = `${link(url, esc(who))} · ${link(lurl, esc(lic))}`;
+  el.title = `${who} · ${lic}`;
 }
 function showDock() {
   const t = IT[S.playing]; if (!t) return;
@@ -360,14 +406,18 @@ function syncRows() {
   document.body.classList.toggle("playing", !audio.paused);
 }
 audio.onplay = audio.onpause = audio.onended = () => { syncRows(); kick(); };
-audio.ontimeupdate = () => {
-  const f = audio.duration ? audio.currentTime / audio.duration : 0;
+// progress through the clip, not the pack it sits in; a pack clip stops at its end (also checked every frame)
+function clipTick() {
+  if (clipOver() && !audio.paused) audio.pause();
+  const c = S.clip, f = c?.t1 ? clamp((audio.currentTime - c.t0) / (c.t1 - c.t0)) : audio.duration ? audio.currentTime / audio.duration : 0;
   $("dprog").style.width = `${f * 100}%`;
   const b = document.querySelector(".row.playing .rprog b"); if (b) b.style.width = `${f * 100}%`;
-};
+}
+audio.ontimeupdate = clipTick;
 audio.onerror = () => {
   if (S.playing === null || !audio.src) return;
-  toast(!LOCAL ? "Audio isn't hosted on this public page (licences). The local version plays every clip." :
+  toast(!LOCAL ? (IT[S.playing].col === "podcasts" ? "This podcast plays from its publisher's server, and it didn't answer. Try another clip, or the local version."
+                                                    : "Couldn't load this clip's audio from GitHub. Check the connection and try again.") :
         location.protocol === "file:" ? "Open the page through scripts/serve.py to hear clips." : "This clip's audio isn't on this laptop yet.");
 };
 $("dplay").onclick = () => S.playing !== null && play(S.playing);
@@ -382,7 +432,9 @@ function drawSpec() {
   sctx.clearRect(0, 0, w, h);
   const bw = w / n;
   for (let k = 0; k < n; k++) {
-    const v = freq && !audio.paused ? freq[Math.floor(k * 1.6) + 1] / 255 : 0.04 + 0.03 * Math.sin(k);
+    const now = performance.now() / 1000;
+    const v = audio.paused ? 0.04 + 0.03 * Math.sin(k) : freq ? freq[Math.floor(k * 1.6) + 1] / 255
+      : (.22 + .3 * Math.abs(Math.sin(now * 3.1 + k * .7)) * Math.abs(Math.sin(now * 1.3 + k * .23))) * (1 - k / n * .6);
     const bh = Math.max(3, v * h);
     const g = sctx.createLinearGradient(0, h, 0, h - bh);
     g.addColorStop(0, c); g.addColorStop(1, C.specTop);
@@ -582,11 +634,12 @@ function frame(now) {
     const t = IT[S.playing], x = px(t), y = py(t), col = COLS[t.col].color;
     if (!audio.paused) {
       again = true;
+      if (S.clip?.t1) clipTick();
       if (analyser) {
         analyser.getByteTimeDomainData(wave); analyser.getByteFrequencyData(freq);
         let s = 0; for (const b of wave) s += ((b - 128) / 128) ** 2;
         level = level * .6 + Math.sqrt(s / wave.length) * .4;
-      }
+      } else level = .06 + .05 * Math.sin(now / 170) * Math.sin(now / 410);   // no analyser on Pages: a gentle pulse
       for (let k = 0; k < 3; k++) {
         const f = ((now / 1300) + k / 3) % 1;
         ctx.strokeStyle = col; ctx.globalAlpha = (1 - f) * .7; ctx.lineWidth = 1.6;
@@ -657,7 +710,7 @@ cv.onmousemove = e => {
   if (i === null) { tip.style.display = "none"; return; }
   const t = IT[i], v = verdict(t, S.query);
   tip.style.setProperty("--c", COLS[t.col].color);
-  tip.innerHTML = `<div class="tn">${esc(cap(t.name))}</div><div class="tm"><i></i>${COLS[t.col].short} · ${esc(t.col === "podcasts" ? t.label : pretty(t.label))}${v === "ok" ? " · ✓" : v === "bad" ? " · ✗" : ""}</div><div class="th">Click to play · ${t.dur.toFixed(0)} s</div>`;
+  tip.innerHTML = `<div class="tn">${esc(cap(t.name))}</div><div class="tm"><i></i>${COLS[t.col].short} · ${esc(t.col === "podcasts" ? t.label : pretty(t.label))}${v === "ok" ? " · ✓" : v === "bad" ? " · ✗" : ""}</div><div class="th">${hosted(i) ? `Click to play · ${t.dur.toFixed(0)} s` : "Audio plays on the local version only"}</div>`;
   tip.style.display = "block";
   const tw = tip.offsetWidth, th = tip.offsetHeight;
   tip.style.left = `${mx + 18 + tw > W ? mx - tw - 14 : mx + 18}px`;
@@ -708,7 +761,7 @@ function renderLegend() {
 // ---------- keyboard ----------
 document.addEventListener("keydown", e => {
   const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName);
-  if (e.key === "/" && !typing) { e.preventDefault(); $("q").focus(); }
+  if (e.key === "/" && !typing && LOCAL) { e.preventDefault(); $("q").focus(); }
   else if (e.key === "Escape") { if (typing) $("q").blur(); else deselect(); }
   else if (e.key === " " && !typing && S.playing !== null && e.target === document.body) { e.preventDefault(); play(S.playing); }
 });
@@ -864,13 +917,13 @@ function boot() {
   countUp($("st-kinds"), new Set(IT.map(t => t.col + t.label)).size);
   resize(); renderMini();
   chartWords(); chartEmo(); collectionCards();
-  typePH();
+  if (LOCAL) typePH();
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { resize(); chartWords(); chartEmo(); collectionCards(); }, 120); });
   // deep links: #chip=cough, #ex=0, #q=a door slamming, #play=123
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get("chip")) { const n = DATA.chips.findIndex(c => c.key === h.get("chip")); if (n >= 0) runChip(n, true); }
   else if (h.get("ex")) runSimilar(EXAMPLES[+h.get("ex")].idx, +h.get("ex"));
-  else if (h.get("q")) { $("q").value = h.get("q"); runText(h.get("q")); }
+  else if (h.get("q") && LOCAL) { $("q").value = h.get("q"); runText(h.get("q")); }
   if (h.get("play")) { S.playing = +h.get("play"); showDock(); kick(); }
   if (h.has("light")) $("theme").click();   // screenshots only
 }
